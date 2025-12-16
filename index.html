@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Gate Circuit Builder</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for a technical look -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Full Screen Component Menu (Hidden by default) -->
+        <div id="component-menu" class="hidden">
+            <div class="menu-window">
+                <div class="menu-header">
+                    <h2>Select Component</h2>
+                    <span class="hint">Press TAB to Resume</span>
+                </div>
+                
+                <div class="menu-body">
+                    <!-- Left: Component List -->
+                    <div class="menu-left">
+                        <div class="menu-section-title">Logic</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="AND" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 H 25 A 15 15 0 0 1 25 40 H 10 V 10 Z" fill="none" stroke="white" stroke-width="4"/>
+                                    </svg>
+                                </div>
+                                <span>AND</span>
+                            </div>
+                            <div class="menu-item" data-type="OR" draggable="true">
+                                <div class="menu-icon">
+                                     <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 C 15 10 15 40 5 40 C 30 40 40 25 40 25 C 40 25 30 10 5 10 Z" fill="none" stroke="white" stroke-width="4"/>
+                                    </svg>
+                                </div>
+                                <span>OR</span>
+                            </div>
+                            <div class="menu-item" data-type="NOT" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 V 40 L 35 25 Z" fill="none" stroke="white" stroke-width="4"/>
+                                        <circle cx="39" cy="25" r="3" stroke="white" stroke-width="3" fill="none"/>
+                                    </svg>
+                                </div>
+                                <span>NOT</span>
+                            </div>
+                            <div class="menu-item" data-type="XOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                         <path d="M 12 10 C 22 10 22 40 12 40 C 37 40 47 25 47 25 C 47 25 37 10 12 10 Z" fill="none" stroke="white" stroke-width="4"/>
+                                         <path d="M 4 10 C 14 10 14 40 4 40" fill="none" stroke="white" stroke-width="4"/>
+                                    </svg>
+                                </div>
+                                <span>XOR</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section-title">Input / Output</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="Switch" draggable="true">
+                                 <div class="menu-icon input-icon">SW</div>
+                                <span>Switch</span>
+                            </div>
+                            <div class="menu-item" data-type="Light" draggable="true">
+                                 <div class="menu-icon output-icon">LT</div>
+                                <span>Light</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Description Panel -->
+                    <div class="menu-right">
+                        <div id="desc-title" class="desc-title">Select a component</div>
+                        <div id="desc-text" class="desc-text">
+                            Click on a component to view its description. Double-click to add it to the circuit board.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Access Bar -->
+        <div id="quick-access-bar">
+            <div class="qa-slot" data-slot="1"><span class="key-hint">1</span></div>
+            <div class="qa-slot" data-slot="2"><span class="key-hint">2</span></div>
+            <div class="qa-slot" data-slot="3"><span class="key-hint">3</span></div>
+            <div class="qa-slot" data-slot="4"><span class="key-hint">4</span></div>
+            <div class="qa-slot" data-slot="5"><span class="key-hint">5</span></div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div id="workspace">
+            <div id="world">
+                <!-- SVG Layer for wires -->
+                <svg id="connections-layer"></svg>
+                <!-- Nodes will be injected here by JS -->
+            </div>
+            <!-- Selection Box -->
+            <div id="selection-box" class="hidden"></div>
+        </div>
+
+        <!-- Floating UI controls (Zoom/Pan hints if implemented later) -->
+        <div id="ui-overlay">
+            <div class="controls">
+                <button class="icon-btn" title="Delete Selected (Del)">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
