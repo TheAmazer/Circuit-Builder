@@ -78,7 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'MUL': { inputs: 2, outputs: 1, label: 'MUL', desc: "Outputs the product of two inputs (A * B)." },
         'DIV': { inputs: 2, outputs: 1, label: 'DIV', desc: "Outputs the division (A / B). Top is A, Bottom is B." },
         'Threshold': { inputs: 1, outputs: 1, label: 'Threshold', desc: "Outputs ON if input is between <b>Min</b> and <b>Max</b>." },
-        'Function': { inputs: 1, outputs: 1, label: 'Function', desc: "Outputs the result of a custom formula (e.g. 'x * 2 + 1'). Use 'x' as the input." }
+        'Function': { inputs: 1, outputs: 1, label: 'Function', desc: "Outputs the result of a custom formula (e.g. 'x * 2 + 1'). Use 'x' as the input." },
+        'SR Latch': { inputs: 2, outputs: 1, label: 'SR Latch', desc: "Set-Reset Latch. Top: Set, Bottom: Reset. Retains state." },
+        'D Flip-Flop': { inputs: 2, outputs: 1, label: 'D Flip-Flop', desc: "Data Flip-Flop. Top: Data, Bottom: Clock. Updates on rising edge." },
+        'JK Flip-Flop': { inputs: 3, outputs: 1, label: 'JK Flip-Flop', desc: "JK Flip-Flop. Top: J, Mid: K, Bot: Clock. Updates on rising edge." },
+        'T Flip-Flop': { inputs: 2, outputs: 1, label: 'T Flip-Flop', desc: "Toggle Flip-Flop. Top: Toggle, Bottom: Clock. Updates on rising edge." }
     };
 
     const gateSVGs = {
@@ -95,7 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'XOR': `<svg viewBox="0 0 50 50" class="gate-icon">
                   <path class="fill-shape" d="M 10 5 C 20 5 20 45 10 45 C 40 45 50 25 50 25 C 50 25 40 5 10 5 Z" />
                   <path d="M 2 5 C 12 5 12 45 2 45" stroke="currentColor" stroke-width="3" fill="none"/>
-                </svg>`
+                </svg>`,
+        'SR Latch': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">SR</text></svg>`,
+        'D Flip-Flop': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">D</text></svg>`,
+        'JK Flip-Flop': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">JK</text></svg>`,
+        'T Flip-Flop': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">T</text></svg>`
     };
 
     const ioSVGs = {
@@ -451,7 +459,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // No offset needed, we use movementX/Y
             });
 
-            nodes.push({ id, type, el: nodeEl });
+            // Initialize Memory for Stateful Nodes
+            const memory = {};
+            if (['SR Latch', 'D Flip-Flop', 'JK Flip-Flop', 'T Flip-Flop'].includes(type)) {
+                memory.state = false; // Current Q state
+                memory.lastClock = false; // Last clock input state
+            }
+
+            nodes.push({ id, type, el: nodeEl, memory });
         }
         
         return nodeEl;
@@ -807,6 +822,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputVals: {}, 
                 outputVals: {} 
             };
+            // Initialize internal state from memory if it exists
+            if (n.memory && n.memory.state !== undefined) {
+                state[n.id].internalState = n.memory.state;
+            }
         });
 
         // 3. Get Switch & Lever states
@@ -839,11 +858,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const s = state[n.id];
                 const i0 = s.inputVals[0] !== undefined ? s.inputVals[0] : 0;
                 const i1 = s.inputVals[1] !== undefined ? s.inputVals[1] : 0;
+                const i2 = s.inputVals[2] !== undefined ? s.inputVals[2] : 0; // For JK
                 let out = 0;
 
                 // Logic Helper: Treat val > 0 as true
                 const b0 = (typeof i0 === 'number' ? i0 > 0 : i0) === true;
                 const b1 = (typeof i1 === 'number' ? i1 > 0 : i1) === true;
+                const b2 = (typeof i2 === 'number' ? i2 > 0 : i2) === true;
 
                 switch (n.type) {
                     case 'AND': out = b0 && b1; break;
@@ -875,6 +896,38 @@ document.addEventListener('DOMContentLoaded', () => {
                             out = 0;
                         }
                         break;
+
+                    // --- Memory Gates ---
+                    case 'SR Latch':
+                        // S (b0), R (b1)
+                        if (b0) s.internalState = true;
+                        else if (b1) s.internalState = false;
+                        out = s.internalState;
+                        break;
+                    case 'D Flip-Flop':
+                        // D (b0), C (b1)
+                        // Rising Edge of Clock
+                        if (b1 && !n.memory.lastClock) {
+                            s.internalState = b0;
+                        }
+                        out = s.internalState;
+                        break;
+                    case 'JK Flip-Flop':
+                        // J (b0), K (b1), C (b2)
+                        if (b2 && !n.memory.lastClock) {
+                            if (b0 && !b1) s.internalState = true;      // Set
+                            else if (!b0 && b1) s.internalState = false; // Reset
+                            else if (b0 && b1) s.internalState = !s.internalState; // Toggle
+                        }
+                        out = s.internalState;
+                        break;
+                    case 'T Flip-Flop':
+                        // T (b0), C (b1)
+                        if (b1 && !n.memory.lastClock) {
+                            if (b0) s.internalState = !s.internalState;
+                        }
+                        out = s.internalState;
+                        break;
                 }
 
                 if (n.type !== 'Switch' && n.type !== 'Lever' && n.type !== 'Light' && n.type !== 'Dial') {
@@ -887,6 +940,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!changed) break;
         }
+
+        // 4b. Update Persistent Memory (After convergence)
+        nodes.forEach(n => {
+            if (n.memory) {
+                // Update State
+                if (state[n.id].internalState !== undefined) {
+                    n.memory.state = state[n.id].internalState;
+                }
+                // Update Last Clock for Edge Detection
+                let clkVal = false;
+                if (n.type === 'D Flip-Flop' || n.type === 'T Flip-Flop') {
+                    const v = state[n.id].inputVals[1];
+                    clkVal = (typeof v === 'number' ? v > 0 : v) === true;
+                } else if (n.type === 'JK Flip-Flop') {
+                    const v = state[n.id].inputVals[2];
+                    clkVal = (typeof v === 'number' ? v > 0 : v) === true;
+                }
+                
+                // For SR Latch, no clock tracking needed, but safe to ignore
+                if (n.type.includes('Flip-Flop')) {
+                    n.memory.lastClock = clkVal;
+                }
+            }
+        });
 
         // 5. Update UI (Lights)
         nodes.forEach(n => {

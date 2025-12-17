@@ -7,6 +7,7 @@ This project allows users to design and simulate logic circuits directly in the 
 
 ## Features implemented
 - **Component Library:** AND, OR, NOT, XOR gates, Switches, and Lights.
+- **Memory Components:** SR Latch, D Flip-Flop, JK Flip-Flop, and T Flip-Flop.
 - **Number System Support:** Wires can now carry numerical (floating-point) values. Logic gates interpret values > 0 as ON.
 - **Math Gates:** ADD, SUB (Subtract), MUL (Multiply), DIV (Divide) gates for numerical operations.
 - **Function Gate:** A programmable math gate where users can enter custom formulas (e.g., `x * 2 + 1`).

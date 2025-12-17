@@ -294,6 +294,23 @@ body, html {
     justify-content: center;
 }
 
+/* Fix for Quick Access Bar Icons (Logic Gates & IO) */
+.qa-slot svg path, 
+.qa-slot svg circle, 
+.qa-slot svg rect, 
+.qa-slot svg line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+/* Ensure filled elements in IO icons (like knobs) are filled if they rely on currentColor */
+.qa-slot svg circle[fill="currentColor"],
+.qa-slot svg rect[fill="currentColor"] {
+    fill: currentColor;
+    stroke: none;
+}
+
 /* --- Workspace --- */
 #workspace {
     flex: 1;
