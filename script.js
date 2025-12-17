@@ -56,10 +56,23 @@ document.addEventListener('DOMContentLoaded', () => {
             inputs: 0, outputs: 1, label: 'Switch', type: 'input',
             desc: "A manual toggle switch. Use this to send an ON/OFF signal into your circuit."
         },
+        'Lever': {
+            inputs: 0, outputs: 1, label: 'Lever', type: 'input',
+            desc: "A variable input that outputs a specific <b>Number</b> value."
+        },
+        'Dial': {
+            inputs: 1, outputs: 0, label: 'Dial', type: 'output',
+            desc: "Displays the numeric value of the input signal."
+        },
         'Light': { 
             inputs: 1, outputs: 0, label: 'Light', type: 'output',
-            desc: "A visual indicator. Lights up when receiving an ON signal."
-        }
+            desc: "A visual indicator. Lights up when receiving an ON signal (value > 0)."
+        },
+        'ADD': { inputs: 2, outputs: 1, label: 'ADD', desc: "Outputs the sum of two inputs (A + B)." },
+        'SUB': { inputs: 2, outputs: 1, label: 'SUB', desc: "Outputs the difference (A - B). Top is A, Bottom is B." },
+        'MUL': { inputs: 2, outputs: 1, label: 'MUL', desc: "Outputs the product of two inputs (A * B)." },
+        'DIV': { inputs: 2, outputs: 1, label: 'DIV', desc: "Outputs the division (A / B). Top is A, Bottom is B." },
+        'Threshold': { inputs: 1, outputs: 1, label: 'Threshold', desc: "Outputs ON if input is between <b>Min</b> and <b>Max</b>." }
     };
 
     const gateSVGs = {
@@ -71,12 +84,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 </svg>`,
         'NOT': `<svg viewBox="0 0 50 50" class="gate-icon">
                   <path class="fill-shape" d="M 10 10 V 40 L 35 25 Z" />
-                  <circle cx="40" cy="25" r="4" stroke="#333" stroke-width="3" fill="none"/>
+                  <circle cx="40" cy="25" r="4" stroke="currentColor" stroke-width="3" fill="none"/>
                 </svg>`,
         'XOR': `<svg viewBox="0 0 50 50" class="gate-icon">
                   <path class="fill-shape" d="M 10 5 C 20 5 20 45 10 45 C 40 45 50 25 50 25 C 50 25 40 5 10 5 Z" />
-                  <path d="M 2 5 C 12 5 12 45 2 45" stroke="#333" stroke-width="3" fill="none"/>
+                  <path d="M 2 5 C 12 5 12 45 2 45" stroke="currentColor" stroke-width="3" fill="none"/>
                 </svg>`
+    };
+
+    const ioSVGs = {
+        'Switch': `<svg viewBox="0 0 50 50" class="io-icon"><rect x="10" y="15" width="30" height="20" rx="10" stroke="currentColor" stroke-width="3" fill="none"/><circle cx="18" cy="25" r="6" fill="currentColor"/></svg>`,
+        'Lever': `<svg viewBox="0 0 50 50" class="io-icon"><line x1="10" y1="25" x2="40" y2="25" stroke="currentColor" stroke-width="3"/><rect x="20" y="15" width="10" height="20" fill="currentColor"/></svg>`,
+        'Light': `<svg viewBox="0 0 50 50" class="io-icon"><circle cx="25" cy="20" r="10" stroke="currentColor" stroke-width="3" fill="none"/><path d="M 25 30 V 40 M 20 40 H 30" stroke="currentColor" stroke-width="3"/></svg>`,
+        'Dial': `<svg viewBox="0 0 50 50" class="io-icon"><circle cx="25" cy="25" r="15" stroke="currentColor" stroke-width="3" fill="none"/><path d="M 25 25 L 35 15" stroke="currentColor" stroke-width="2"/></svg>`
     };
 
     // --- Menu & Placing Logic ---
@@ -126,12 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
         let iconHtml = '';
         
         if (gateSVGs[type]) {
-             // Reuse SVG but remove class to let CSS handle sizing
              iconHtml = gateSVGs[type].replace('class="gate-icon"', '');
-        } else if (type === 'Switch') {
-             iconHtml = '<div class="input-icon" style="color:#e74c3c; font-weight:bold;">SW</div>';
-        } else if (type === 'Light') {
-             iconHtml = '<div class="output-icon" style="color:#f39c12; font-weight:bold;">LT</div>';
+        } else if (ioSVGs[type]) {
+             iconHtml = ioSVGs[type].replace('class="io-icon"', '');
+        } else {
+             let text = type.substring(0, 2);
+             if (type === 'ADD') text = '+';
+             if (type === 'SUB') text = '-';
+             if (type === 'MUL') text = 'x';
+             if (type === 'DIV') text = '/';
+             if (type === 'Threshold') text = '[ ]';
+             iconHtml = `<div class="math-icon" style="font-size:28px;">${text}</div>`;
         }
         slot.innerHTML = hint + iconHtml;
     }
@@ -154,6 +179,19 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         const type = item.dataset.type;
         const def = componentDefinitions[type];
+        
+        // Dynamic Icon Injection for Consistency
+        const iconContainer = item.querySelector('.menu-icon');
+        if (iconContainer) {
+            if (gateSVGs[type]) {
+                iconContainer.innerHTML = gateSVGs[type];
+            } else if (ioSVGs[type]) {
+                iconContainer.innerHTML = ioSVGs[type];
+            } else {
+                // Keep existing text for Math or unknown, or update styling if needed.
+                // Math items already have .math-icon class in HTML.
+            }
+        }
 
         // Drag Start (for QAB)
         item.addEventListener('dragstart', (e) => {
@@ -283,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'Switch') {
             const switchControl = document.createElement('div');
             switchControl.className = 'node-control';
-            switchControl.innerHTML = '<div class="toggle-switch"></div>';
+            switchControl.innerHTML = '<div class="toggle-switch"></div>'; // Reverted
             if (!isGhost) {
                 switchControl.querySelector('.toggle-switch').onclick = function() {
                     this.classList.toggle('on');
@@ -291,15 +329,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             }
             body.appendChild(switchControl);
+        } else if (type === 'Lever') {
+            const leverControl = document.createElement('div');
+            leverControl.className = 'node-control';
+            leverControl.innerHTML = '<input type="number" step="0.1" value="0" class="lever-input">'; // Reverted
+            if (!isGhost) {
+                const input = leverControl.querySelector('input');
+                input.addEventListener('mousedown', (e) => e.stopPropagation());
+                input.addEventListener('change', updateSimulation);
+                input.addEventListener('input', updateSimulation);
+            }
+            body.appendChild(leverControl);
+        } else if (type === 'Dial') {
+            const dialControl = document.createElement('div');
+            dialControl.className = 'node-control';
+            dialControl.innerHTML = '<div class="dial-display">0.00</div>'; // Reverted
+            body.appendChild(dialControl);
         } else if (type === 'Light') {
             const lightControl = document.createElement('div');
             lightControl.className = 'node-control';
-            lightControl.innerHTML = '<div class="light-indicator"></div>';
+            lightControl.innerHTML = '<div class="light-indicator"></div>'; // Reverted
             body.appendChild(lightControl);
         } else if (gateSVGs[type]) {
             const iconContainer = document.createElement('div');
             iconContainer.className = 'node-control';
             iconContainer.innerHTML = gateSVGs[type];
+            body.appendChild(iconContainer);
+        } else if (type === 'Threshold') {
+            const thControl = document.createElement('div');
+            thControl.className = 'node-control threshold-control';
+            thControl.innerHTML = `
+                <input type="number" class="threshold-input" placeholder="Min" value="0">
+                <input type="number" class="threshold-input" placeholder="Max" value="1">
+            `; // Reverted (no math-icon div)
+            if (!isGhost) {
+                const inputs = thControl.querySelectorAll('input');
+                inputs.forEach(inp => {
+                    inp.addEventListener('mousedown', e => e.stopPropagation());
+                    inp.addEventListener('change', updateSimulation);
+                    inp.addEventListener('input', updateSimulation);
+                });
+            }
+            body.appendChild(thControl);
+        } else {
+            // Text Fallback (Math)
+            const iconContainer = document.createElement('div');
+            iconContainer.className = 'node-control';
+            let text = type.substring(0, 2);
+            if (type === 'ADD') text = '+';
+            if (type === 'SUB') text = '-';
+            if (type === 'MUL') text = 'x';
+            if (type === 'DIV') text = '/';
+            iconContainer.innerHTML = `<div class="math-icon">${text}</div>`;
             body.appendChild(iconContainer);
         }
 
@@ -683,35 +764,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Simulation Logic (Basic) ---
     function updateSimulation() {
         // 1. Reset all inputs
-        // 2. Propagate signals
-        // Since we might have loops, a simple robust way is iterative or topological sort.
-        // For this simple prototype, we'll just run a few passes or recursive evaluation.
-        
-        // Simple state map: nodeID -> { inputs: [], outputs: [] }
+        // Simple state map: nodeID -> { inputVals: {}, outputVals: {} }
         const state = {};
         nodes.forEach(n => {
             state[n.id] = { 
                 type: n.type,
-                inputVals: {}, // index -> bool
-                outputVals: {} // index -> bool
+                inputVals: {}, 
+                outputVals: {} 
             };
         });
 
-        // 3. Get Switch states
+        // 3. Get Switch & Lever states
         document.querySelectorAll('.node[data-type="Switch"]').forEach(el => {
             const isOn = el.querySelector('.toggle-switch').classList.contains('on');
             state[el.id].outputVals[0] = isOn;
         });
+        document.querySelectorAll('.node[data-type="Lever"]').forEach(el => {
+            const val = parseFloat(el.querySelector('input').value) || 0;
+            state[el.id].outputVals[0] = val;
+        });
 
         // 4. Evaluation Loop (Simulate propagation delay)
-        // A proper sim would be tick-based. We will do a single instant pass for UX responsiveness.
         // Max depth 20 to prevent infinite loops freezing UI
         for (let pass = 0; pass < 20; pass++) {
             let changed = false;
 
             // Transfer outputs to inputs via connections
             connections.forEach(conn => {
-                const val = state[conn.sourceNode].outputVals[conn.sourceIndex] || false;
+                const val = state[conn.sourceNode].outputVals[conn.sourceIndex];
+                // Check undefined explicitly
                 if (state[conn.destNode].inputVals[conn.destIndex] !== val) {
                     state[conn.destNode].inputVals[conn.destIndex] = val;
                     changed = true;
@@ -721,20 +802,36 @@ document.addEventListener('DOMContentLoaded', () => {
             // Evaluate Gates
             nodes.forEach(n => {
                 const s = state[n.id];
-                const i0 = s.inputVals[0] || false;
-                const i1 = s.inputVals[1] || false;
-                let out = false;
+                const i0 = s.inputVals[0] !== undefined ? s.inputVals[0] : 0;
+                const i1 = s.inputVals[1] !== undefined ? s.inputVals[1] : 0;
+                let out = 0;
+
+                // Logic Helper: Treat val > 0 as true
+                const b0 = (typeof i0 === 'number' ? i0 > 0 : i0) === true;
+                const b1 = (typeof i1 === 'number' ? i1 > 0 : i1) === true;
 
                 switch (n.type) {
-                    case 'AND': out = i0 && i1; break;
-                    case 'OR':  out = i0 || i1; break;
-                    case 'NOT': out = !i0; break;
-                    case 'XOR': out = i0 !== i1; break;
-                    // Switch is already handled
-                    // Light is output only
+                    case 'AND': out = b0 && b1; break;
+                    case 'OR':  out = b0 || b1; break;
+                    case 'NOT': out = !b0; break;
+                    case 'XOR': out = b0 !== b1; break;
+                    
+                    case 'ADD': out = (Number(i0)||0) + (Number(i1)||0); break;
+                    case 'SUB': out = (Number(i0)||0) - (Number(i1)||0); break;
+                    case 'MUL': out = (Number(i0)||0) * (Number(i1)||0); break;
+                    case 'DIV': 
+                        const divI1 = Number(i1)||0;
+                        out = divI1 === 0 ? 0 : (Number(i0)||0) / divI1; 
+                        break;
+                    case 'Threshold':
+                        const min = parseFloat(n.el.querySelector('input:nth-child(1)').value) || 0;
+                        const max = parseFloat(n.el.querySelector('input:nth-child(2)').value) || 0;
+                        const valIn = Number(i0) || 0;
+                        out = (valIn >= min && valIn <= max);
+                        break;
                 }
 
-                if (n.type !== 'Switch' && n.type !== 'Light') {
+                if (n.type !== 'Switch' && n.type !== 'Lever' && n.type !== 'Light' && n.type !== 'Dial') {
                     if (s.outputVals[0] !== out) {
                         s.outputVals[0] = out;
                         changed = true;
@@ -748,18 +845,32 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Update UI (Lights)
         nodes.forEach(n => {
             if (n.type === 'Light') {
-                const isOn = state[n.id].inputVals[0] || false;
+                const val = state[n.id].inputVals[0];
+                const isOn = (typeof val === 'number' ? val > 0 : val) === true;
                 const lightEl = n.el.querySelector('.light-indicator');
                 if (isOn) lightEl.classList.add('on');
                 else lightEl.classList.remove('on');
+            } else if (n.type === 'Dial') {
+                 const val = state[n.id].inputVals[0];
+                 const display = n.el.querySelector('.dial-display');
+                 if (typeof val === 'number') {
+                     display.innerText = val.toFixed(2);
+                 } else if (val === true) {
+                     display.innerText = 'ON';
+                 } else if (val === false || val === undefined) {
+                     display.innerText = '0.00';
+                 }
             }
         });
         
         // Optional: Animate wires (color them if active)
         connections.forEach(conn => {
              const val = state[conn.sourceNode].outputVals[conn.sourceIndex];
-             if (val) {
-                 conn.pathEl.style.stroke = '#f1c40f'; // Active color
+             if (typeof val === 'number') {
+                 conn.pathEl.style.stroke = '#2ecc71'; // Green for Numbers
+                 conn.pathEl.style.strokeWidth = '3px';
+             } else if (val === true) {
+                 conn.pathEl.style.stroke = '#f1c40f'; // Active Bool
                  conn.pathEl.style.strokeWidth = '3px';
              } else {
                  conn.pathEl.style.stroke = ''; // Revert to CSS default (red/green)

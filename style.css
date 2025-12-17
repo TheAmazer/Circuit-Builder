@@ -1,6 +1,6 @@
 :root {
-    --bg-color: #3a5a65; /* Brighter Teal */
-    --grid-line: #4a6a75;
+    --bg-color: #5dade2; /* Brighter Blue */
+    --grid-line: rgba(255, 255, 255, 0.15); /* Lighter grid for blue bg */
     --node-bg: #b0b0b0;
     --node-header: #8a8a8a;
     --node-border: #1a1a1a;
@@ -9,7 +9,7 @@
     --wire-num: #2ecc71;  /* Green */
     --wire-hover: #f1c40f;
     --pin-color: #333;
-    --selection: #3498db;
+    --selection: #2c3e50;
 }
 
 body, html {
@@ -322,10 +322,10 @@ path.wire-ghost {
 .node {
     position: absolute;
     width: 140px;
-    background-color: var(--node-bg);
-    border: 2px solid var(--node-border);
-    border-radius: 4px;
-    color: var(--text-color);
+    background-color: #ffffff; /* White background */
+    border: 2px solid #333; /* Dark border */
+    border-radius: 6px;
+    color: #000; /* Dark text */
     box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
     user-select: none;
     z-index: 2;
@@ -335,19 +335,21 @@ path.wire-ghost {
 
 .node.selected {
     border-color: var(--selection);
-    box-shadow: 0 0 0 2px var(--selection);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
 }
 
 .node-header {
-    background-color: var(--node-header);
-    padding: 5px 10px;
+    background-color: transparent; /* No separate header bg */
+    padding: 8px 10px 0 10px; /* Adjust padding */
     font-weight: bold;
-    font-size: 12px;
-    border-bottom: 1px solid var(--node-border);
-    cursor: move; /* Drag handle */
+    font-size: 14px;
+    border-bottom: none; /* No separator line */
+    cursor: move;
     display: flex;
-    justify-content: space-between;
+    justify-content: center; /* Center text */
     align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .node-body {
@@ -355,23 +357,23 @@ path.wire-ghost {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    align-items: center; /* Center vertically */
-    min-height: 40px;
+    align-items: center;
+    min-height: 50px;
 }
 
 .gate-icon {
     width: 40px;
     height: 40px;
-    opacity: 0.8;
+    opacity: 1;
 }
 
 .gate-icon path, .gate-icon circle {
     fill: none;
-    stroke: #333;
+    stroke: currentColor;
     stroke-width: 3;
 }
 .gate-icon .fill-shape {
-    fill: rgba(0,0,0,0.1);
+    fill: rgba(0,0,0,0.05);
 }
 
 .inputs, .outputs {
@@ -379,34 +381,37 @@ path.wire-ghost {
     flex-direction: column;
     justify-content: center;
     gap: 15px;
+    overflow: visible !important;
+    flex-shrink: 0;
 }
 
 /* Pins (Connection Points) */
 .pin {
     width: 16px;
     height: 16px;
-    background-color: var(--pin-color);
+    background-color: #555;
     border-radius: 50%;
     border: 2px solid #000;
     position: relative;
     cursor: pointer;
     transition: transform 0.1s;
+    z-index: 100;
+    flex-shrink: 0;
 }
 
 .pin:hover {
     transform: scale(1.2);
-    border-color: white;
+    border-color: #3498db;
 }
 
 .pin.input {
-    margin-left: -20px; /* Pull outside left */
+    margin-left: -20px;
 }
 
 .pin.output {
-    margin-right: -20px; /* Pull outside right */
+    margin-right: -20px;
 }
 
-/* Pin labels/types styling */
 .pin::after {
     content: '';
     position: absolute;
@@ -415,24 +420,48 @@ path.wire-ghost {
     transform: translate(-50%, -50%);
     width: 6px;
     height: 6px;
-    background-color: var(--wire-bool); /* Default to bool red */
+    background-color: var(--wire-bool);
     border-radius: 50%;
 }
 
-/* Interactive elements inside nodes */
+/* IO Icon styles */
+.io-icon {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 5px auto;
+}
+.io-icon path, .io-icon circle, .io-icon rect, .io-icon line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+/* Special case for filled circles in IO icons (like Lever knob) */
+.io-icon circle[fill="#333"] {
+    fill: currentColor;
+    stroke: none;
+}
+.io-icon rect[fill="#333"] {
+    fill: currentColor;
+}
+
 .node-control {
     width: 100%;
     text-align: center;
+    display: flex;
+    flex-direction: column; /* Stack Icon + Control */
+    align-items: center;
+    justify-content: center;
 }
 
 .toggle-switch {
     width: 40px;
     height: 20px;
-    background: #333;
+    background: #ccc;
     border-radius: 10px;
     position: relative;
     cursor: pointer;
     margin: 0 auto;
+    border: 1px solid #999;
 }
 
 .toggle-switch.on {
@@ -442,31 +471,91 @@ path.wire-ghost {
 .toggle-switch::after {
     content: '';
     position: absolute;
-    top: 2px;
+    top: 1px;
     left: 2px;
     width: 16px;
     height: 16px;
     background: white;
     border-radius: 50%;
     transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .toggle-switch.on::after {
-    left: 22px;
+    left: 20px;
 }
 
 .light-indicator {
     width: 24px;
     height: 24px;
-    background-color: #444;
+    background-color: #ddd;
     border-radius: 50%;
     margin: 0 auto;
-    border: 2px solid #222;
+    border: 2px solid #555;
 }
 
 .light-indicator.on {
     background-color: #f1c40f;
     box-shadow: 0 0 10px #f1c40f;
+    border-color: #b7950b;
+}
+
+.lever-input {
+    width: 60px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 2px 5px;
+    text-align: center;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+}
+
+.lever-input:focus {
+    outline: none;
+    border-color: var(--selection);
+}
+
+.math-icon {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff; /* White Text */
+    background-color: #2c3e50; /* Dark Circle */
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.dial-display {
+    width: 60px;
+    height: 30px;
+    background-color: #222; /* Keep dial dark for contrast */
+    color: #2ecc71;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #555;
+    border-radius: 4px;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+}
+
+.threshold-input {
+    width: 50px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    font-size: 10px;
+    padding: 1px;
+    text-align: center;
 }
 
 /* UI Overlay */
