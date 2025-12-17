@@ -9,6 +9,7 @@ This project allows users to design and simulate logic circuits directly in the 
 - **Component Library:** AND, OR, NOT, XOR gates, Switches, and Lights.
 - **Number System Support:** Wires can now carry numerical (floating-point) values. Logic gates interpret values > 0 as ON.
 - **Math Gates:** ADD, SUB (Subtract), MUL (Multiply), DIV (Divide) gates for numerical operations.
+- **Function Gate:** A programmable math gate where users can enter custom formulas (e.g., `x * 2 + 1`).
 - **Lever Input:** A new input component allowing users to set a floating-point value.
 - **Dial Output:** A new output component to display numerical values.
 - **Threshold Gate:** A logic gate that outputs ON if its numerical input is within a user-defined (Min/Max) range.
@@ -18,12 +19,16 @@ This project allows users to design and simulate logic circuits directly in the 
   - SVG-based logic symbols.
   - Smooth Bezier curve wiring.
   - White SVG logos for Input/Output components in menus (TAB and Quick Access Bar).
+  - **Pin Styling:** Binary (Boolean) pins are Red, Number pins are Green.
+  - **Wire Animation:** Active wires (carrying signal/value) have a flowing animation.
 - **Interaction:**
   - **Quick Access Bar:** 5 slots for frequent components (Drag from menu to assign).
   - **Component Menu:** Full-screen overlay (TAB) with descriptions.
   - **Navigation:** Infinite canvas panning (Middle Mouse Button).
   - **Selection:** Drag-box selection and multi-move capability.
   - **Editing:** Delete nodes via Trash Bin (Drag to bottom right) or Delete key.
+  - **Save/Load:** Save circuits to a `.logic` file and load them back.
+  - **Undo/Redo:** Full history support for circuit changes.
 - **Simulation:** Instant feedback loop for logic states (Red/Green wires, Light indicators), now with numerical propagation.
 
 ## Tech Stack
@@ -41,6 +46,4 @@ This project allows users to design and simulate logic circuits directly in the 
 2. No build step required.
 
 ## Roadmap (Future)
-- Save/Load functionality (JSON export).
-- Undo/Redo history.
 - Packaging as a standalone executable (Electron/Tauri).

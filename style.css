@@ -8,8 +8,12 @@
     --wire-bool: #e74c3c; /* Red */
     --wire-num: #2ecc71;  /* Green */
     --wire-hover: #f1c40f;
+    --pin-bool: #e74c3c;
+    --pin-num: #2ecc71;
     --pin-color: #333;
     --selection: #2c3e50;
+    --top-bar-bg: #2c3e50;
+    --top-bar-border: #34495e;
 }
 
 body, html {
@@ -25,9 +29,53 @@ body, html {
 
 #app {
     display: flex;
+    flex-direction: column; /* Changed to column for top bar */
     width: 100vw;
     height: 100vh;
 }
+
+/* --- Top Bar --- */
+#top-bar {
+    height: 40px;
+    background-color: var(--top-bar-bg);
+    border-bottom: 2px solid var(--top-bar-border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 10px;
+    z-index: 150;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.top-btn {
+    background-color: transparent;
+    color: #bdc3c7; /* Default Light Gray */
+    border: 2px solid #7f8c8d;
+    padding: 5px;
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.top-btn:hover {
+    background-color: #34495e;
+    color: white;
+}
+
+#save-btn { color: #2ecc71; border-color: #2ecc71; }
+#save-btn:hover { background-color: #2ecc71; color: white; }
+
+#load-btn { color: #3498db; border-color: #3498db; }
+#load-btn:hover { background-color: #3498db; color: white; }
+
+#undo-btn, #redo-btn { color: #f39c12; border-color: #f39c12; }
+#undo-btn:hover, #redo-btn:hover { background-color: #f39c12; color: white; }
 
 /* --- Menu Overlay (TAB) --- */
 #component-menu {
@@ -310,6 +358,17 @@ path.wire:hover {
     stroke: var(--wire-hover);
 }
 
+path.wire.flowing {
+    stroke-dasharray: 10, 5; /* 10px dash, 5px gap */
+    animation: flow 1s linear infinite;
+}
+
+@keyframes flow {
+    to {
+        stroke-dashoffset: -15; /* Move by dash+gap size (reverse direction) */
+    }
+}
+
 path.wire-ghost {
     fill: none;
     stroke: rgba(255, 255, 255, 0.5);
@@ -420,9 +479,15 @@ path.wire-ghost {
     transform: translate(-50%, -50%);
     width: 6px;
     height: 6px;
-    background-color: var(--wire-bool);
+    background-color: #fff; /* Default center, will be overridden */
     border-radius: 50%;
 }
+
+.pin.bool { border-color: var(--pin-bool); }
+.pin.bool::after { background-color: var(--pin-bool); }
+
+.pin.num { border-color: var(--pin-num); }
+.pin.num::after { background-color: var(--pin-num); }
 
 /* IO Icon styles */
 .io-icon {
@@ -556,6 +621,22 @@ path.wire-ghost {
     font-size: 10px;
     padding: 1px;
     text-align: center;
+}
+
+.function-input {
+    width: 100px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+}
+.function-input:focus {
+    outline: none;
+    border-color: var(--selection);
 }
 
 /* UI Overlay */

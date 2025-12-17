@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectStartX = 0;
     let selectStartY = 0;
 
+    // History State
+    let history = [];
+    let historyStep = -1;
+    let isRestoring = false;
+
     // Wiring State
     let isWiring = false;
     let activePin = null; 
@@ -72,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'SUB': { inputs: 2, outputs: 1, label: 'SUB', desc: "Outputs the difference (A - B). Top is A, Bottom is B." },
         'MUL': { inputs: 2, outputs: 1, label: 'MUL', desc: "Outputs the product of two inputs (A * B)." },
         'DIV': { inputs: 2, outputs: 1, label: 'DIV', desc: "Outputs the division (A / B). Top is A, Bottom is B." },
-        'Threshold': { inputs: 1, outputs: 1, label: 'Threshold', desc: "Outputs ON if input is between <b>Min</b> and <b>Max</b>." }
+        'Threshold': { inputs: 1, outputs: 1, label: 'Threshold', desc: "Outputs ON if input is between <b>Min</b> and <b>Max</b>." },
+        'Function': { inputs: 1, outputs: 1, label: 'Function', desc: "Outputs the result of a custom formula (e.g. 'x * 2 + 1'). Use 'x' as the input." }
     };
 
     const gateSVGs = {
@@ -254,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectedNodes = [];
         updateSimulation();
+        saveState();
     }
     
     // Helper: Screen to World Coords
@@ -308,11 +315,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.createElement('div');
         body.classList.add('node-body');
 
+        // Determine Pin Styles
+        let inputClass = 'bool';
+        let outputClass = 'bool';
+
+        const numTypes = ['ADD', 'SUB', 'MUL', 'DIV', 'Lever', 'Dial', 'Function'];
+        if (numTypes.includes(type)) {
+            inputClass = 'num';
+            outputClass = 'num';
+        } else if (type === 'Threshold') {
+            inputClass = 'num';
+            outputClass = 'bool';
+        }
+
         // Inputs
         const inputsContainer = document.createElement('div');
         inputsContainer.classList.add('inputs');
         for (let i = 0; i < def.inputs; i++) {
-            const pin = createPin('input', id, i);
+            const pin = createPin('input', id, i, inputClass);
             inputsContainer.appendChild(pin);
         }
         body.appendChild(inputsContainer);
@@ -371,6 +391,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             body.appendChild(thControl);
+        } else if (type === 'Function') {
+            const funcControl = document.createElement('div');
+            funcControl.className = 'node-control';
+            funcControl.innerHTML = `<input type="text" class="function-input" value="x" placeholder="x * 2">`;
+            if (!isGhost) {
+                const inp = funcControl.querySelector('input');
+                inp.addEventListener('mousedown', e => e.stopPropagation());
+                inp.addEventListener('change', updateSimulation);
+                inp.addEventListener('keydown', e => e.stopPropagation()); 
+            }
+            body.appendChild(funcControl);
         } else {
             // Text Fallback (Math)
             const iconContainer = document.createElement('div');
@@ -388,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const outputsContainer = document.createElement('div');
         outputsContainer.classList.add('outputs');
         for (let i = 0; i < def.outputs; i++) {
-            const pin = createPin('output', id, i);
+            const pin = createPin('output', id, i, outputClass);
             outputsContainer.appendChild(pin);
         }
         body.appendChild(outputsContainer);
@@ -426,9 +457,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return nodeEl;
     }
 
-    function createPin(type, nodeId, index) {
+    function createPin(type, nodeId, index, styleClass = 'bool') {
         const pin = document.createElement('div');
-        pin.classList.add('pin', type);
+        pin.classList.add('pin', type, styleClass);
         pin.dataset.type = type;
         pin.dataset.node = nodeId;
         pin.dataset.index = index;
@@ -471,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 createNode(placingType, wPos.x - 70, wPos.y - 30);
                 cancelPlacing(); 
+                saveState();
                 return;
             }
 
@@ -622,6 +654,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (trashBtn && trashBtn.classList.contains('expanded')) {
                 deleteSelectedNode();
                 trashBtn.classList.remove('expanded');
+            } else {
+                saveState();
             }
             isDraggingNode = null;
         }
@@ -681,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cancelWiring();
         updateSimulation(); // Trigger update immediately
+        saveState();
     }
 
     function cancelWiring() {
@@ -829,6 +864,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         const valIn = Number(i0) || 0;
                         out = (valIn >= min && valIn <= max);
                         break;
+                    case 'Function':
+                        const formula = n.el.querySelector('.function-input').value || 'x';
+                        const x = Number(i0) || 0;
+                        try {
+                            const func = new Function('x', `try { return ${formula}; } catch(e) { return 0; }`);
+                            out = func(x);
+                            if (typeof out !== 'number' || isNaN(out)) out = 0;
+                        } catch (e) {
+                            out = 0;
+                        }
+                        break;
                 }
 
                 if (n.type !== 'Switch' && n.type !== 'Lever' && n.type !== 'Light' && n.type !== 'Dial') {
@@ -866,12 +912,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Optional: Animate wires (color them if active)
         connections.forEach(conn => {
              const val = state[conn.sourceNode].outputVals[conn.sourceIndex];
+             conn.pathEl.classList.remove('flowing');
+             
              if (typeof val === 'number') {
                  conn.pathEl.style.stroke = '#2ecc71'; // Green for Numbers
                  conn.pathEl.style.strokeWidth = '3px';
+                 if (val !== 0) conn.pathEl.classList.add('flowing');
              } else if (val === true) {
-                 conn.pathEl.style.stroke = '#f1c40f'; // Active Bool
+                 conn.pathEl.style.stroke = '#e74c3c'; // Revert to Red (Bool) - wait, style css has default.
+                 // Actually, if I set inline style, it overrides class.
+                 // Default wire is red in CSS? No, var(--wire-bool) which is red.
+                 // So for bool, we can just remove inline stroke if we want default, or set it explicit.
+                 conn.pathEl.style.stroke = '#e74c3c'; 
                  conn.pathEl.style.strokeWidth = '3px';
+                 conn.pathEl.classList.add('flowing');
              } else {
                  conn.pathEl.style.stroke = ''; // Revert to CSS default (red/green)
                  conn.pathEl.style.strokeWidth = '';
@@ -879,19 +933,213 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Clear board
-    clearBtn.addEventListener('click', () => {
-        workspace.innerHTML = '<svg id="connections-layer"></svg>'; // Nuke it (lazy way)
-        nodes = [];
-        connections = [];
-        nextNodeId = 1;
-        // Re-fetch svg layer
-        const newSvg = document.getElementById('connections-layer');
-        // We lost the svg reference, need to update global var? 
-        // Better:
-        window.location.reload(); // Simplest for prototype
-    });
+    // Clear board - Ensure this only runs if button exists (it likely doesn't in current HTML)
+    const clearBtn = document.getElementById('clear-btn'); 
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            window.location.reload(); 
+        });
+    }
+
 
     // Initial Sim
     updateSimulation();
+    saveState();
+
+    // --- Undo / Redo Logic ---
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+
+    function saveState() {
+        if (isRestoring) return;
+
+        // Serialize Current State
+        const state = {
+            nodes: nodes.map(n => {
+                const nodeData = {
+                    id: n.id,
+                    type: n.type,
+                    x: parseFloat(n.el.style.left),
+                    y: parseFloat(n.el.style.top)
+                };
+                if (n.type === 'Switch') nodeData.isOn = n.el.querySelector('.toggle-switch').classList.contains('on');
+                else if (n.type === 'Lever') nodeData.value = n.el.querySelector('input').value;
+                else if (n.type === 'Threshold') {
+                    nodeData.min = n.el.querySelector('input:nth-child(1)').value;
+                    nodeData.max = n.el.querySelector('input:nth-child(2)').value;
+                } else if (n.type === 'Function') nodeData.formula = n.el.querySelector('.function-input').value;
+                return nodeData;
+            }),
+            connections: connections.map(c => ({
+                sourceNode: c.sourceNode,
+                sourceIndex: c.sourceIndex,
+                destNode: c.destNode,
+                destIndex: c.destIndex
+            }))
+        };
+
+        // Truncate history if we are in the middle
+        if (historyStep < history.length - 1) {
+            history = history.slice(0, historyStep + 1);
+        }
+
+        history.push(state);
+        historyStep++;
+        
+        // Limit history
+        if (history.length > 50) {
+            history.shift();
+            historyStep--;
+        }
+    }
+
+    undoBtn.addEventListener('click', () => {
+        if (historyStep > 0) {
+            historyStep--;
+            isRestoring = true;
+            loadCircuit(history[historyStep]);
+            isRestoring = false;
+        }
+    });
+
+    redoBtn.addEventListener('click', () => {
+        if (historyStep < history.length - 1) {
+            historyStep++;
+            isRestoring = true;
+            loadCircuit(history[historyStep]);
+            isRestoring = false;
+        }
+    });
+
+    // --- Save / Load Logic ---
+    const saveBtn = document.getElementById('save-btn');
+    const loadBtn = document.getElementById('load-btn');
+    const fileInput = document.getElementById('file-input');
+
+    saveBtn.addEventListener('click', () => {
+        const data = {
+            nodes: nodes.map(n => {
+                const rect = n.el.getBoundingClientRect(); 
+                // Using style.left/top is correct as it matches what we set
+                const nodeData = {
+                    id: n.id,
+                    type: n.type,
+                    x: parseFloat(n.el.style.left),
+                    y: parseFloat(n.el.style.top)
+                };
+
+                // Save State/Config
+                if (n.type === 'Switch') {
+                    nodeData.isOn = n.el.querySelector('.toggle-switch').classList.contains('on');
+                } else if (n.type === 'Lever') {
+                    nodeData.value = n.el.querySelector('input').value;
+                } else if (n.type === 'Threshold') {
+                    nodeData.min = n.el.querySelector('input:nth-child(1)').value;
+                    nodeData.max = n.el.querySelector('input:nth-child(2)').value;
+                } else if (n.type === 'Function') {
+                    nodeData.formula = n.el.querySelector('.function-input').value;
+                }
+                
+                return nodeData;
+            }),
+            connections: connections.map(c => ({
+                sourceNode: c.sourceNode,
+                sourceIndex: c.sourceIndex,
+                destNode: c.destNode,
+                destIndex: c.destIndex
+            }))
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'microprocessor.logic';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    loadBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                loadCircuit(data);
+            } catch (err) {
+                alert("Error loading file: " + err);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset
+    });
+
+    function loadCircuit(data) {
+        // 1. Clear Board Safely
+        nodes.forEach(n => n.el.remove());
+        nodes = [];
+        
+        // Clear connections and SVG
+        connections = [];
+        while (svgLayer.firstChild) {
+            svgLayer.removeChild(svgLayer.firstChild);
+        }
+        
+        // 2. Recreate Nodes
+        let maxId = 0;
+        data.nodes.forEach(nData => {
+            // Extract numeric ID part
+            const numId = parseInt(nData.id.replace('node-', ''));
+            if (!isNaN(numId) && numId >= maxId) maxId = numId;
+
+            const nodeEl = createNode(nData.type, nData.x, nData.y);
+            // Override the ID generated by createNode to match saved ID
+            const oldId = nodeEl.id; 
+            
+            // Remove from nodes array with generated ID
+            nodes.pop(); 
+            
+            nodeEl.id = nData.id;
+            nodeEl.dataset.id = nData.id;
+            
+            // Restore Config
+            if (nData.type === 'Switch' && nData.isOn) {
+                nodeEl.querySelector('.toggle-switch').classList.add('on');
+            } else if (nData.type === 'Lever') {
+                nodeEl.querySelector('input').value = nData.value;
+            } else if (nData.type === 'Threshold') {
+                nodeEl.querySelector('input:nth-child(1)').value = nData.min;
+                nodeEl.querySelector('input:nth-child(2)').value = nData.max;
+            } else if (nData.type === 'Function') {
+                nodeEl.querySelector('.function-input').value = nData.formula;
+            }
+
+            nodes.push({ id: nData.id, type: nData.type, el: nodeEl });
+        });
+
+        nextNodeId = maxId + 1;
+
+        // 3. Recreate Connections
+        data.connections.forEach(cData => {
+            const sourceNode = nodes.find(n => n.id === cData.sourceNode);
+            const destNode = nodes.find(n => n.id === cData.destNode);
+            
+            if (sourceNode && destNode) {
+                const sourcePin = sourceNode.el.querySelector(`.outputs .pin[data-index="${cData.sourceIndex}"]`);
+                const destPin = destNode.el.querySelector(`.inputs .pin[data-index="${cData.destIndex}"]`);
+                
+                if (sourcePin && destPin) {
+                    createConnection(sourcePin, destPin);
+                }
+            }
+        });
+
+        updateSimulation();
+    }
 });
