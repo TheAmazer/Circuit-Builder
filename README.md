@@ -1,40 +1,144 @@
-Logic Gate Circuit Builder
-A web-based circuit designer inspired by Stormworks microcontroller editor.
+<!-- Large, prominent heading with graceful fallback -->
+<h1 align="center" style="font-size:56px;margin:18px 0;color:#0a84ff;text-shadow:0 2px 8px rgba(10,132,255,0.16);">
+  Circuit Builder
+</h1>
 
-Features
-Drag & Drop Interface: Expanded library including Logic Gates (AND, OR, NOT, XOR), Memory Components (SR Latch, Flip-Flops, Registers), and Math Gates (ADD, SUB, MUL, DIV).
+<p align="center" style="margin-top:-8px;font-size:16px;color:#556675;">
+  A lightweight, web-based logic- and math-circuit designer inspired by the Stormworks microcontroller editor.
+</p>
 
-Visual Wiring: Smooth Bezier curves with color-coded signal paths—Red for Boolean and Green for Numerical signals.
+---
 
-Real-time Simulation: Instant feedback loop for logic states with numerical propagation and animated "flowing" wires for active signals.
+## Table of contents
+- [Highlights](#highlights)
+- [Quick demo](#quick-demo)
+- [Features](#features)
+- [Getting started](#getting-started)
+- [How to use](#how-to-use)
+  - [Add components](#add-components)
+  - [Move & select](#move--select)
+  - [Connect & edit wires](#connect--edit-wires)
+  - [Configure gates](#configure-gates)
+- [File format & persistence](#file-format--persistence)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Tutorial & learning](#tutorial--learning)
+- [Future plans](#future-plans)
+- [Contributing](#contributing)
+- [License](#license)
 
-Advanced Functionality: Programmable Function Gates for custom math formulas and Utility Gates like Numerical Switchboxes and Threshold Gates.
+---
 
-Stormworks Aesthetic: Single white box node styling with SVG symbols on a bright blue infinite grid.
+## Highlights
+- Intuitive drag-and-drop editor with an infinite canvas and bright Stormworks-like aesthetic.
+- Real-time simulation with animated flowing wires to show active signals.
+- Mixed-signal support: Boolean signals (red) and numerical signals (green).
+- Built with plain modern JavaScript — no build step required.
 
-Getting Started
-Open index.html in any modern web browser (Chrome, Firefox, Edge).
+---
 
-No installation or build steps required—built with Vanilla JavaScript (ES6+).
+## Quick demo
+Open `index.html` in any modern browser (Chrome, Firefox, Edge) to try the app locally — no installation required.
 
-How to Use
-Add Components: Press TAB to open the animated full-screen menu or use the Quick Access Bar (slots 1-0) to drag items onto the grid.
+---
 
-Move & Select: Click and drag headers to move nodes. Use drag-box selection to move multiple components at once.
+## Features
+- Drag & Drop Interface
+  - Logic gates: AND, OR, NOT, XOR
+  - Memory components: SR Latch, Flip-Flops, Registers
+  - Math gates: ADD, SUB, MUL, DIV
+  - Programmable Function Gates for custom math expressions
+  - Utility gates: Numerical Switchboxes, Threshold Gates
+- Visual Wiring
+  - Smooth Bézier wires
+  - Color-coded signal paths (Red = Boolean, Green = Numeric)
+  - Animated "flow" on active wires
+- Real-time Simulation
+  - Immediate propagation of logic states and numerical values
+- Configuration & Controls
+  - Gate parameter editing (min/max, formulas, reset values)
+  - Undo / Redo
+  - Save / Load (.logic export/import)
+- UX & Style
+  - Single white-node aesthetic with SVG symbols
+  - Bright blue grid background for high contrast
 
-Connect & Edit Wires:
+---
 
-Click and drag from an Output Pin (right) to an Input Pin (left).
+## Getting started
+1. Clone the repo or download the files.
+2. Open `index.html` in your browser.
+   - No server, no build tools — just static files.
+3. Start building on the canvas.
 
-Dragging a wire between already connected pins will toggle (delete) the connection.
+---
 
-Configure Gates: Double-click a node or click the Gear Icon to open the Sidebar. Modify parameters like Min/Max values, custom formulas, or memory reset values.
+## How to use
 
-Tutorial: Complete the Interactive First-Time Tutorial to learn menu navigation, tool assignment, and component connection.
+### Add components
+- Press `TAB` to open the animated full-screen component menu.
+- Use the Quick Access Bar (keys `1`–`0`) for frequently used components.
+- Drag components from the menu onto the canvas.
 
-Manage Progress: Use Undo/Redo for mistakes and Save/Load to export your design as a .logic file.
+### Move & select
+- Drag node headers to reposition a node.
+- Click-and-drag a selection box to select and move multiple nodes.
 
-Future Plans
-Standalone Executable: Packaging the app using Electron or Tauri for desktop use.
+### Connect & edit wires
+- Click and drag from an Output pin (right side) to an Input pin (left side).
+- Dragging a connection between already-connected pins will toggle (delete) the connection.
 
-Enhanced Component Library: Further expansion of composite signal types and complex utility modules.
+### Configure gates
+- Double-click a node or click the gear icon to open the Sidebar editor.
+- Edit parameters such as min/max values, custom formulas, and memory reset values.
+
+---
+
+## File format & persistence
+- Save your design to a `.logic` file using the Save function.
+- Load `.logic` files back into the app with the Load function to continue editing.
+
+---
+
+## Keyboard shortcuts
+- TAB — Open component menu
+- 1–0 — Quick access bar slots
+- Ctrl/Cmd + Z — Undo
+- Ctrl/Cmd + Y / Shift + Ctrl/Cmd + Z — Redo
+- Delete / Backspace — Remove selected components or wires
+- Double-click node — Open configuration sidebar
+
+(Keyboard bindings are customizable in later versions.)
+
+---
+
+## Tutorial & learning
+On first run the app launches an interactive tutorial that walks you through:
+- menu navigation
+- placing components
+- wiring signals
+- running a simple example circuit
+
+Complete the tutorial to get comfortable with the editor and tools.
+
+---
+
+## Future plans
+- Desktop builds using Electron or Tauri for single-click launch.
+- Expanded component library: more memory primitives, composite signal types, and utility modules.
+- Community-contributed gates and example designs.
+
+---
+
+## Contributing
+Contributions, issues and suggestions are welcome!
+- Open an issue to discuss a change or feature.
+- Fork the repo, create a branch for a feature/fix, and submit a PR.
+
+Please include screenshots or GIFs for visual changes and a short description of behavior for bug fixes.
+
+---
+
+## License
+This project is open source — include your preferred license here (e.g., MIT).  
+
+If you want help adding a LICENSE file or badges, I can propose those as well.
