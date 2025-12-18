@@ -1,31 +1,40 @@
-# Logic Gate Circuit Builder
-
+Logic Gate Circuit Builder
 A web-based circuit designer inspired by Stormworks microcontroller editor.
 
-## Features
-- **Drag & Drop Interface**: Easily place components from the toolbar.
-- **Visual Wiring**: Connect components using smooth Bezier curves (Red for boolean signals).
-- **Real-time Simulation**: Interaction with switches instantly updates the circuit state (Lights/Output).
-- **Stormworks Aesthetic**: Dark grid theme and node styling.
+Features
+Drag & Drop Interface: Expanded library including Logic Gates (AND, OR, NOT, XOR), Memory Components (SR Latch, Flip-Flops, Registers), and Math Gates (ADD, SUB, MUL, DIV).
 
-## Getting Started
-1. Open `index.html` in any modern web browser (Chrome, Firefox, Edge).
-2. No installation required.
+Visual Wiring: Smooth Bezier curves with color-coded signal paths—Red for Boolean and Green for Numerical signals.
 
-## How to Use
-1. **Add Components**: Drag items (AND, OR, Switch, Light, etc.) from the left toolbar onto the grid.
-2. **Move Components**: Click and drag the header of any node to move it.
-3. **Connect Wires**:
-   - Click and drag from an **Output Pin** (Right side of node).
-   - Drop onto an **Input Pin** (Left side of node).
-   - *Note: Inputs can only have one connection. Outputs can have multiple.*
-4. **Interact**:
-   - Click the **Switch** toggle to send an On (True) signal.
-   - Watch the **Light** nodes turn yellow when they receive an On signal.
-5. **Delete Wire**: Click on any wire to remove it (requires confirmation).
-6. **Clear**: Use the "Clear Board" button to reset.
+Real-time Simulation: Instant feedback loop for logic states with numerical propagation and animated "flowing" wires for active signals.
 
-## Future Plans
-- Number and Composite signal types (Green/Purple wires).
-- Save/Load functionality.
-- Export to Executable (using Electron/Tauri).
+Advanced Functionality: Programmable Function Gates for custom math formulas and Utility Gates like Numerical Switchboxes and Threshold Gates.
+
+Stormworks Aesthetic: Single white box node styling with SVG symbols on a bright blue infinite grid.
+
+Getting Started
+Open index.html in any modern web browser (Chrome, Firefox, Edge).
+
+No installation or build steps required—built with Vanilla JavaScript (ES6+).
+
+How to Use
+Add Components: Press TAB to open the animated full-screen menu or use the Quick Access Bar (slots 1-0) to drag items onto the grid.
+
+Move & Select: Click and drag headers to move nodes. Use drag-box selection to move multiple components at once.
+
+Connect & Edit Wires:
+
+Click and drag from an Output Pin (right) to an Input Pin (left).
+
+Dragging a wire between already connected pins will toggle (delete) the connection.
+
+Configure Gates: Double-click a node or click the Gear Icon to open the Sidebar. Modify parameters like Min/Max values, custom formulas, or memory reset values.
+
+Tutorial: Complete the Interactive First-Time Tutorial to learn menu navigation, tool assignment, and component connection.
+
+Manage Progress: Use Undo/Redo for mistakes and Save/Load to export your design as a .logic file.
+
+Future Plans
+Standalone Executable: Packaging the app using Electron or Tauri for desktop use.
+
+Enhanced Component Library: Further expansion of composite signal types and complex utility modules.
