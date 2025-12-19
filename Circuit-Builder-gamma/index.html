@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Gate Circuit Builder</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for a technical look -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Top Navigation Bar -->
+        <div id="top-bar">
+            <button id="new-btn" class="top-btn" title="New Circuit">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+            </button>
+            <button id="save-btn" class="top-btn" title="Save">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M15 9H5V5h10m-3 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3m5-16H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4z" />
+                </svg>
+            </button>
+            <button id="load-btn" class="top-btn" title="Load">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                </svg>
+            </button>
+            <div style="width: 20px;"></div> <!-- Spacer -->
+            <button id="undo-btn" class="top-btn" title="Undo">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+                </svg>
+            </button>
+            <button id="redo-btn" class="top-btn" title="Redo">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" />
+                </svg>
+            </button>
+            <input type="file" id="file-input" accept=".logic" style="display: none;">
+            <div style="flex: 1;"></div> <!-- Flex spacer to push settings to the right -->
+            <button id="settings-btn" class="top-btn" title="Settings">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button id="settings-close" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label for="zoom-sensitivity">Zoom Sensitivity</label>
+                        <div class="slider-row">
+                            <input type="range" id="zoom-sensitivity" min="0.5" max="2" step="0.1" value="1">
+                            <span id="zoom-sensitivity-value">1.0x</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label for="pan-sensitivity">Pan Sensitivity</label>
+                        <div class="slider-row">
+                            <input type="range" id="pan-sensitivity" min="0.5" max="2" step="0.1" value="1">
+                            <span id="pan-sensitivity-value">1.0x</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Screen Component Menu (Hidden by default) -->
+        <div id="component-menu" class="hidden">
+            <div class="menu-window">
+                <div class="menu-header">
+                    <h2>Select Component</h2>
+                    <span class="hint">Press TAB to Resume</span>
+                </div>
+
+                <div class="menu-body">
+                    <!-- Left: Component List -->
+                    <div class="menu-left">
+                        <div class="menu-section-title">Logic</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="AND" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 H 25 A 15 15 0 0 1 25 40 H 10 V 10 Z" fill="none"
+                                            stroke="white" stroke-width="4" />
+                                    </svg>
+                                </div>
+                                <span>AND</span>
+                            </div>
+                            <div class="menu-item" data-type="OR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 C 15 10 15 40 5 40 C 30 40 40 25 40 25 C 40 25 30 10 5 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                    </svg>
+                                </div>
+                                <span>OR</span>
+                            </div>
+                            <div class="menu-item" data-type="NOT" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 V 40 L 35 25 Z" fill="none" stroke="white" stroke-width="4" />
+                                        <circle cx="39" cy="25" r="3" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>NOT</span>
+                            </div>
+                            <div class="menu-item" data-type="XOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 12 10 C 22 10 22 40 12 40 C 37 40 47 25 47 25 C 47 25 37 10 12 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                        <path d="M 4 10 C 14 10 14 40 4 40" fill="none" stroke="white"
+                                            stroke-width="4" />
+                                    </svg>
+                                </div>
+                                <span>XOR</span>
+                            </div>
+                            <div class="menu-item" data-type="NAND" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 8 10 H 20 A 15 15 0 0 1 20 40 H 8 V 10 Z" fill="none" stroke="white"
+                                            stroke-width="4" />
+                                        <circle cx="38" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>NAND</span>
+                            </div>
+                            <div class="menu-item" data-type="NOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 C 15 10 15 40 5 40 C 28 40 35 25 35 25 C 35 25 28 10 5 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                        <circle cx="42" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>NOR</span>
+                            </div>
+                            <div class="menu-item" data-type="XNOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 C 18 10 18 40 10 40 C 30 40 38 25 38 25 C 38 25 30 10 10 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                        <path d="M 3 10 C 11 10 11 40 3 40" fill="none" stroke="white"
+                                            stroke-width="4" />
+                                        <circle cx="44" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>XNOR</span>
+                            </div>
+                            <div class="menu-item" data-type="Threshold" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 14px;">[Lo,Hi]</div>
+                                <span>Threshold</span>
+                            </div>
+                            <div class="menu-item" data-type="Numerical Switchbox" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 L 20 25 L 5 25" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 5 40 L 20 25 L 5 25" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 20 25 L 45 25" fill="none" stroke="white" stroke-width="3" />
+                                        <circle cx="45" cy="25" r="3" fill="white" />
+                                    </svg>
+                                </div>
+                                <span>Numerical Switchbox</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section-title">Memory</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="SR Latch" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="5" y="5" width="40" height="40" stroke="white" stroke-width="4"
+                                            fill="none" />
+                                        <text x="25" y="30" fill="white" font-size="14" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">SR</text>
+                                    </svg>
+                                </div>
+                                <span>SR Latch</span>
+                            </div>
+                            <div class="menu-item" data-type="D Flip-Flop" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="5" y="5" width="40" height="40" stroke="white" stroke-width="4"
+                                            fill="none" />
+                                        <text x="25" y="30" fill="white" font-size="14" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">D-FF</text>
+                                    </svg>
+                                </div>
+                                <span>D Flip-Flop</span>
+                            </div>
+                            <div class="menu-item" data-type="JK Flip-Flop" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="5" y="5" width="40" height="40" stroke="white" stroke-width="4"
+                                            fill="none" />
+                                        <text x="25" y="30" fill="white" font-size="14" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">JK-FF</text>
+                                    </svg>
+                                </div>
+                                <span>JK Flip-Flop</span>
+                            </div>
+                            <div class="menu-item" data-type="T Flip-Flop" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="5" y="5" width="40" height="40" stroke="white" stroke-width="4"
+                                            fill="none" />
+                                        <text x="25" y="30" fill="white" font-size="14" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">T-FF</text>
+                                    </svg>
+                                </div>
+                                <span>T Flip-Flop</span>
+                            </div>
+                            <div class="menu-item" data-type="Memory Register" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="5" y="5" width="40" height="40" stroke="white" stroke-width="4"
+                                            fill="none" />
+                                        <text x="25" y="30" fill="white" font-size="14" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">REG</text>
+                                    </svg>
+                                </div>
+                                <span>Memory Register</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section-title">Input / Output</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="Switch" draggable="true">
+                                <div class="menu-icon input-icon">SW</div>
+                                <span>Switch</span>
+                            </div>
+                            <div class="menu-item" data-type="Lever" draggable="true">
+                                <div class="menu-icon input-icon" style="color: #2ecc71; border-color: #2ecc71;">LEV
+                                </div>
+                                <span>Lever</span>
+                            </div>
+                            <div class="menu-item" data-type="Light" draggable="true">
+                                <div class="menu-icon output-icon">LT</div>
+                                <span>Light</span>
+                            </div>
+                            <div class="menu-item" data-type="Dial" draggable="true">
+                                <div class="menu-icon output-icon" style="color: #2ecc71; border-color: #2ecc71;">0.00
+                                </div>
+                                <span>Dial</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section-title">Math</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="ADD" draggable="true">
+                                <div class="menu-icon math-icon">+</div>
+                                <span>ADD</span>
+                            </div>
+                            <div class="menu-item" data-type="SUB" draggable="true">
+                                <div class="menu-icon math-icon">-</div>
+                                <span>SUB</span>
+                            </div>
+                            <div class="menu-item" data-type="MUL" draggable="true">
+                                <div class="menu-icon math-icon">x</div>
+                                <span>MUL</span>
+                            </div>
+                            <div class="menu-item" data-type="DIV" draggable="true">
+                                <div class="menu-icon math-icon">/</div>
+                                <span>DIV</span>
+                            </div>
+                            <div class="menu-item" data-type="Function" draggable="true">
+                                <div class="menu-icon math-icon">f(x)</div>
+                                <span>Function</span>
+                            </div>
+                            <div class="menu-item" data-type="Equal" draggable="true">
+                                <div class="menu-icon math-icon">=</div>
+                                <span>Equal</span>
+                            </div>
+                            <div class="menu-item" data-type="Greater Than" draggable="true">
+                                <div class="menu-icon math-icon">&gt;</div>
+                                <span>Greater Than</span>
+                            </div>
+                            <div class="menu-item" data-type="Less Than" draggable="true">
+                                <div class="menu-icon math-icon">&lt;</div>
+                                <span>Less Than</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Description Panel -->
+                    <div class="menu-right">
+                        <div id="desc-title" class="desc-title">Select a component</div>
+                        <div id="desc-text" class="desc-text">
+                            Click on a component to view its description. Double-click to add it to the circuit board.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Access Bar -->
+        <div id="quick-access-bar">
+            <div class="qa-slot" data-slot="1"><span class="key-hint">1</span></div>
+            <div class="qa-slot" data-slot="2"><span class="key-hint">2</span></div>
+            <div class="qa-slot" data-slot="3"><span class="key-hint">3</span></div>
+            <div class="qa-slot" data-slot="4"><span class="key-hint">4</span></div>
+            <div class="qa-slot" data-slot="5"><span class="key-hint">5</span></div>
+            <div class="qa-slot" data-slot="6"><span class="key-hint">6</span></div>
+            <div class="qa-slot" data-slot="7"><span class="key-hint">7</span></div>
+            <div class="qa-slot" data-slot="8"><span class="key-hint">8</span></div>
+            <div class="qa-slot" data-slot="9"><span class="key-hint">9</span></div>
+            <div class="qa-slot" data-slot="0"><span class="key-hint">0</span></div>
+            <div class="qa-slot" id="qa-menu-btn" title="Open Menu (Tab)">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm-11 11h7v7H3v-7zm11 0h7v7h-7v-7z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div id="workspace">
+            <div id="world">
+                <!-- SVG Layer for wires -->
+                <svg id="connections-layer"></svg>
+                <!-- Nodes will be injected here by JS -->
+            </div>
+            <!-- Selection Box -->
+            <div id="selection-box" class="hidden"></div>
+        </div>
+
+        <!-- Configuration Sidebar -->
+        <div id="config-sidebar" class="sidebar hidden">
+            <div class="sidebar-header">
+                <h3 id="sidebar-title">Configuration</h3>
+                <button id="sidebar-close" class="close-btn">&times;</button>
+            </div>
+            <div id="sidebar-content" class="sidebar-content">
+                <!-- Dynamic inputs will go here -->
+            </div>
+        </div>
+
+        <!-- Floating UI controls (Zoom/Pan hints if implemented later) -->
+        <div id="ui-overlay">
+            <div class="controls">
+                <button class="icon-btn" title="Delete Selected (Del)">🗑️</button>
+            </div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="custom-tooltip" class="tooltip hidden"></div>
+
+        <!-- Tutorial Overlay -->
+        <div id="tutorial-overlay" class="tutorial-overlay hidden">
+            <div id="tutorial-highlight" class="tutorial-highlight"></div>
+
+            <!-- Ghost element for drag animation demo -->
+            <div id="tutorial-ghost" class="tutorial-ghost">AND</div>
+
+            <!-- Achievement popup -->
+            <div id="tutorial-achievement" class="tutorial-achievement">
+                <div class="tutorial-achievement-icon">🎉</div>
+                <div class="tutorial-achievement-title">Great Job!</div>
+                <div class="tutorial-achievement-subtitle">You placed your first gate!</div>
+            </div>
+
+            <!-- Demo container for connection animation -->
+            <div id="tutorial-demo-container" style="display: none;">
+                <div id="demo-node-1" class="tutorial-demo-node">
+                    <span class="demo-label">Switch</span>
+                    <div class="demo-pin output"></div>
+                </div>
+                <div id="demo-node-2" class="tutorial-demo-node">
+                    <span class="demo-label">Light</span>
+                    <div class="demo-pin input"></div>
+                </div>
+                <svg id="demo-wire" class="tutorial-demo-wire" width="200" height="100">
+                    <path d=""></path>
+                </svg>
+            </div>
+
+            <div id="tutorial-modal" class="tutorial-modal">
+                <div class="tutorial-header">
+                    <span id="tutorial-step-counter" class="tutorial-step-counter">Step 1 of 7</span>
+                    <button id="tutorial-skip" class="tutorial-skip-btn">Skip Tutorial</button>
+                </div>
+                <div class="tutorial-content">
+                    <h2 id="tutorial-title">Welcome!</h2>
+                    <p id="tutorial-text">Tutorial content goes here...</p>
+                    <div id="tutorial-task" class="tutorial-task" style="display: none;">
+                        <span class="tutorial-task-icon">🎯</span>
+                        <span class="tutorial-task-text" id="tutorial-task-text">Complete the task...</span>
+                    </div>
+                </div>
+                <div class="tutorial-footer">
+                    <div class="tutorial-dots" id="tutorial-dots">
+                        <!-- Dots will be generated by JS -->
+                    </div>
+                    <div class="tutorial-nav">
+                        <button id="tutorial-prev" class="tutorial-btn tutorial-btn-secondary">Back</button>
+                        <button id="tutorial-next" class="tutorial-btn tutorial-btn-primary">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

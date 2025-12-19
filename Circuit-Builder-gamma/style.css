@@ -1,0 +1,1635 @@
+:root {
+    --bg-color: #5dade2;
+    /* Brighter Blue */
+    --grid-line: rgba(255, 255, 255, 0.15);
+    /* Lighter grid for blue bg */
+    --node-bg: #b0b0b0;
+    --node-header: #8a8a8a;
+    --node-border: #1a1a1a;
+    --text-color: #222;
+    --wire-bool: #e74c3c;
+    /* Red */
+    --wire-num: #2ecc71;
+    /* Green */
+    --wire-hover: #f1c40f;
+    --pin-bool: #e74c3c;
+    --pin-num: #2ecc71;
+    --pin-color: #333;
+    --selection: #2c3e50;
+    --top-bar-bg: #2c3e50;
+    --top-bar-border: #34495e;
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    color: white;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    /* Changed to column for top bar */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* --- Top Bar --- */
+#top-bar {
+    height: 40px;
+    background-color: var(--top-bar-bg);
+    border-bottom: 2px solid var(--top-bar-border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 10px;
+    z-index: 150;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.top-btn {
+    background-color: transparent;
+    color: #bdc3c7;
+    /* Default Light Gray */
+    border: 2px solid #7f8c8d;
+    padding: 5px;
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.top-btn:hover {
+    background-color: #34495e;
+    color: white;
+}
+
+#new-btn {
+    color: #9b59b6;
+    border-color: #9b59b6;
+}
+
+#new-btn:hover {
+    background-color: #9b59b6;
+    color: white;
+}
+
+#save-btn {
+    color: #2ecc71;
+    border-color: #2ecc71;
+}
+
+#save-btn:hover {
+    background-color: #2ecc71;
+    color: white;
+}
+
+#load-btn {
+    color: #3498db;
+    border-color: #3498db;
+}
+
+#load-btn:hover {
+    background-color: #3498db;
+    color: white;
+}
+
+#undo-btn,
+#redo-btn {
+    color: #f39c12;
+    border-color: #f39c12;
+}
+
+#undo-btn:hover,
+#redo-btn:hover {
+    background-color: #f39c12;
+    color: white;
+}
+
+#settings-btn {
+    color: #95a5a6;
+    border-color: #95a5a6;
+}
+
+#settings-btn:hover {
+    background-color: #95a5a6;
+    color: white;
+}
+
+/* --- Settings Modal --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.2s ease-out;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background-color: #2c3e50;
+    border: 2px solid #34495e;
+    border-radius: 8px;
+    min-width: 300px;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #34495e;
+    border-radius: 6px 6px 0 0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.setting-group {
+    margin-bottom: 20px;
+}
+
+.setting-group:last-child {
+    margin-bottom: 0;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #bdc3c7;
+}
+
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.slider-row input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #34495e;
+    border-radius: 3px;
+    outline: none;
+}
+
+.slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #3498db;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.slider-row input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2980b9;
+}
+
+.slider-row span {
+    min-width: 40px;
+    text-align: right;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    color: #3498db;
+}
+
+/* --- Menu Overlay (TAB) --- */
+#component-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0);
+    /* Transparent background */
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    opacity: 1;
+    /* Default visible state */
+    transform: scale(1);
+    /* Default visible state */
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+#component-menu.hidden {
+    opacity: 0;
+    transform: scale(0.95);
+    /* Slightly scale down when hidden */
+    pointer-events: none;
+    /* Prevent interaction when hidden */
+}
+
+.menu-window {
+    width: 85%;
+    max-width: 1100px;
+    height: 80%;
+    background-color: #1e2e36;
+    /* Stormworks Menu BG */
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.menu-header {
+    text-align: center;
+    padding: 20px;
+    background-color: #152026;
+    border-bottom: 1px solid #333;
+}
+
+.menu-header h2 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.hint {
+    color: #888;
+    font-size: 14px;
+}
+
+.menu-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.menu-left {
+    flex: 3;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #1e2e36;
+}
+
+.menu-right {
+    flex: 1;
+    background-color: #152026;
+    border-left: 1px solid #333;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.desc-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e74c3c;
+    padding-bottom: 5px;
+}
+
+.desc-text {
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.6;
+}
+
+.menu-section-title {
+    color: #aaa;
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid #34495e;
+    padding-bottom: 5px;
+    margin: 10px 0 15px 0;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.menu-item {
+    background-color: #263844;
+    border: 2px solid #34495e;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.1s;
+    height: 100px;
+}
+
+.menu-item:hover {
+    background-color: #34495e;
+}
+
+.menu-item.selected {
+    border-color: #fff;
+    background-color: #34495e;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.menu-icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.menu-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.input-icon {
+    color: #e74c3c;
+    border: 2px solid #e74c3c;
+    border-radius: 4px;
+}
+
+.output-icon {
+    color: #f39c12;
+    border: 2px solid #f39c12;
+    border-radius: 4px;
+}
+
+/* Ghost Node for placement */
+.node.ghost {
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 500;
+    border-color: #e74c3c;
+    /* Highlight placement */
+}
+
+/* --- Quick Access Bar --- */
+#quick-access-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 300;
+    /* Above Menu (200) */
+    background-color: rgba(30, 46, 54, 0.8);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #555;
+}
+
+.qa-slot {
+    width: 60px;
+    height: 60px;
+    background-color: #2c3e50;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+}
+
+.qa-slot:hover {
+    border-color: #e74c3c;
+    background-color: #34495e;
+}
+
+.qa-slot .key-hint {
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    font-size: 10px;
+    color: #bbb;
+    font-weight: bold;
+}
+
+#qa-menu-btn {
+    border-color: #3498db;
+    color: #3498db;
+}
+
+#qa-menu-btn:hover {
+    background-color: #3498db;
+    color: white;
+}
+
+.qa-slot svg {
+    width: 80%;
+    height: 80%;
+}
+
+.qa-slot .input-icon,
+.qa-slot .output-icon {
+    font-size: 14px;
+    font-weight: bold;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix for Quick Access Bar Icons (Logic Gates & IO) */
+.qa-slot svg path,
+.qa-slot svg circle,
+.qa-slot svg rect,
+.qa-slot svg line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+/* Ensure filled elements in IO icons (like knobs) are filled if they rely on currentColor */
+.qa-slot svg circle[fill="currentColor"],
+.qa-slot svg rect[fill="currentColor"] {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* --- Workspace --- */
+#workspace {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    /* Grid Pattern */
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center;
+    cursor: crosshair;
+}
+
+#world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+    /* Allow children (nodes) to receive events */
+    pointer-events: auto;
+}
+
+#connections-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Let clicks pass through to nodes */
+    z-index: 1;
+    overflow: visible;
+    /* Important for infinite canvas */
+}
+
+#selection-box {
+    position: absolute;
+    border: 1px dashed #fff;
+    background-color: rgba(52, 152, 219, 0.2);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+#selection-box.hidden {
+    display: none;
+}
+
+/* SVG Lines */
+path.wire {
+    fill: none;
+    stroke: var(--wire-bool);
+    stroke-width: 4px;
+    stroke-linecap: round;
+    pointer-events: stroke;
+    cursor: pointer;
+    transition: stroke-width 0.1s;
+}
+
+path.wire:hover {
+    stroke-width: 6px;
+    stroke: var(--wire-hover);
+}
+
+path.wire.flowing {
+    stroke-dasharray: 10, 5;
+    /* 10px dash, 5px gap */
+    animation: flow 1s linear infinite;
+}
+
+@keyframes flow {
+    to {
+        stroke-dashoffset: -15;
+        /* Move by dash+gap size (reverse direction) */
+    }
+}
+
+path.wire-ghost {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.5);
+    stroke-width: 2px;
+    stroke-dasharray: 5, 5;
+    pointer-events: none;
+}
+
+/* --- Nodes --- */
+.node {
+    position: absolute;
+    width: 140px;
+    background-color: #ffffff;
+    /* White background */
+    border: 2px solid #333;
+    /* Dark border */
+    border-radius: 6px;
+    color: #000;
+    /* Dark text */
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+    user-select: none;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.node.selected {
+    outline: 3px solid #1a5276;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 6px rgba(26, 82, 118, 0.5), 0 0 15px rgba(52, 152, 219, 0.6);
+}
+
+/* Flowing animated border for selected nodes */
+.node.selected::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    right: -6px;
+    bottom: -6px;
+    border: 3px dashed #3498db;
+    border-radius: 10px;
+    animation: marching-ants-inner 1s linear infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* CSS-based marching ants animation */
+.node.selected::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border: 2px dashed rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    animation: marching-ants-outer 1s linear infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes marching-ants-inner {
+    0% {
+        border-color: #3498db;
+    }
+
+    50% {
+        border-color: #1a5276;
+    }
+
+    100% {
+        border-color: #3498db;
+    }
+}
+
+@keyframes marching-ants-outer {
+    0% {
+        border-color: rgba(255, 255, 255, 0.9);
+    }
+
+    50% {
+        border-color: rgba(52, 152, 219, 0.9);
+    }
+
+    100% {
+        border-color: rgba(255, 255, 255, 0.9);
+    }
+}
+
+.node-header {
+    background-color: transparent;
+    /* No separate header bg */
+    padding: 8px 10px 0 10px;
+    /* Adjust padding */
+    font-weight: bold;
+    font-size: 14px;
+    border-bottom: none;
+    /* No separator line */
+    cursor: move;
+    display: flex;
+    justify-content: center;
+    /* Center text */
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.node-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 50px;
+}
+
+.node input {
+    user-select: auto;
+    pointer-events: auto;
+}
+
+/* Configuration Icon (Top Right) */
+.node-config-icon {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    background-color: #3498db;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+
+.node-config-icon:hover {
+    transform: scale(1.2);
+    background-color: #2980b9;
+}
+
+.gate-icon {
+    width: 40px;
+    height: 40px;
+    opacity: 1;
+}
+
+.gate-icon path,
+.gate-icon circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+.gate-icon .fill-shape {
+    fill: rgba(0, 0, 0, 0.05);
+}
+
+.inputs,
+.outputs {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 15px;
+    overflow: visible !important;
+    flex-shrink: 0;
+}
+
+/* Pins (Connection Points) */
+.pin {
+    width: 16px;
+    height: 16px;
+    background-color: #555;
+    border-radius: 50%;
+    border: 2px solid #000;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.1s;
+    z-index: 100;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.pin:hover {
+    transform: scale(1.2);
+    border-color: #3498db;
+}
+
+.pin.input {
+    margin-left: -20px;
+}
+
+.pin.output {
+    margin-right: -20px;
+}
+
+.pin::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background-color: #fff;
+    /* Default center, will be overridden */
+    border-radius: 50%;
+}
+
+.pin.bool {
+    border-color: var(--pin-bool);
+}
+
+.pin.bool::after {
+    background-color: var(--pin-bool);
+}
+
+.pin.num {
+    border-color: var(--pin-num);
+}
+
+.pin.num::after {
+    background-color: var(--pin-num);
+}
+
+/* IO Icon styles */
+.io-icon {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 5px auto;
+}
+
+.io-icon path,
+.io-icon circle,
+.io-icon rect,
+.io-icon line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+/* Special case for filled circles in IO icons (like Lever knob) */
+.io-icon circle[fill="#333"] {
+    fill: currentColor;
+    stroke: none;
+}
+
+.io-icon rect[fill="#333"] {
+    fill: currentColor;
+}
+
+.node-control {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    /* Stack Icon + Control */
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-switch {
+    width: 40px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    margin: 0 auto;
+    border: 1px solid #999;
+}
+
+.toggle-switch.on {
+    background: var(--wire-num);
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch.on::after {
+    left: 20px;
+}
+
+.light-indicator {
+    width: 24px;
+    height: 24px;
+    background-color: #ddd;
+    border-radius: 50%;
+    margin: 0 auto;
+    border: 2px solid #555;
+}
+
+.light-indicator.on {
+    background-color: #f1c40f;
+    box-shadow: 0 0 10px #f1c40f;
+    border-color: #b7950b;
+}
+
+.lever-input {
+    width: 60px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 2px 5px;
+    text-align: center;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+}
+
+.lever-input:focus {
+    outline: none;
+    border-color: var(--selection);
+}
+
+.math-icon {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    /* White Text */
+    background-color: #2c3e50;
+    /* Dark Circle */
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.dial-display {
+    width: 60px;
+    height: 30px;
+    background-color: #222;
+    /* Keep dial dark for contrast */
+    color: #2ecc71;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #555;
+    border-radius: 4px;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+.threshold-input {
+    width: 50px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    font-size: 10px;
+    padding: 2px;
+    text-align: center;
+    margin: 2px 0;
+    cursor: text;
+}
+
+.function-input {
+    width: 100px;
+    background-color: #f0f0f0;
+    color: #000;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+}
+
+.function-input:focus {
+    outline: none;
+    border-color: var(--selection);
+}
+
+/* UI Overlay */
+#ui-overlay {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #e74c3c;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.icon-btn.expanded {
+    transform: scale(1.5);
+    background-color: #e74c3c;
+    box-shadow: 0 0 15px #e74c3c;
+}
+
+/* Tooltip */
+.tooltip {
+    position: fixed;
+    background: rgba(30, 46, 54, 0.95);
+    color: #fff;
+    padding: 10px 14px;
+    border: 1px solid #5dade2;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+    pointer-events: none;
+    z-index: 10000;
+    max-width: 250px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    white-space: normal;
+}
+
+.tooltip.hidden {
+    display: none;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 250px;
+    height: 100%;
+    background-color: #2c3e50;
+    border-left: 2px solid #34495e;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 500;
+    transition: transform 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar.hidden {
+    transform: translateX(100%);
+}
+
+.sidebar-header {
+    padding: 15px;
+    background-color: #34495e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #ecf0f1;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #bdc3c7;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+.sidebar-content {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sidebar-input-group {
+    margin-bottom: 15px;
+}
+
+.sidebar-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #bdc3c7;
+}
+
+.sidebar-input-group input {
+    width: 100%;
+    padding: 8px;
+    background-color: #34495e;
+    border: 1px solid #7f8c8d;
+    color: white;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.config-display {
+    font-size: 10px;
+    color: #2ecc71;
+    font-family: 'Roboto Mono', monospace;
+    text-align: center;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+/* --- Tutorial Styles --- */
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.3s ease-out, background-color 0.3s ease-out;
+}
+
+/* Transparent mode - no dark backdrop */
+.tutorial-overlay.transparent {
+    background-color: transparent;
+    pointer-events: none;
+}
+
+.tutorial-overlay.transparent .tutorial-modal {
+    pointer-events: auto;
+}
+
+.tutorial-overlay.transparent .tutorial-highlight {
+    box-shadow: 0 0 0 3px #3498db, 0 0 20px rgba(52, 152, 219, 0.8);
+}
+
+.tutorial-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tutorial-highlight {
+    position: fixed;
+    border: 3px solid #3498db;
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 20px rgba(52, 152, 219, 0.8);
+    z-index: 10001;
+    pointer-events: none;
+    transition: all 0.4s ease-out;
+    animation: tutorial-pulse 2s infinite;
+}
+
+.tutorial-highlight.no-shadow {
+    box-shadow: 0 0 20px rgba(52, 152, 219, 0.8);
+}
+
+.tutorial-highlight.hidden {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+@keyframes tutorial-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 15px rgba(52, 152, 219, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 30px rgba(52, 152, 219, 1);
+    }
+}
+
+.tutorial-modal {
+    position: fixed;
+    background: linear-gradient(145deg, #2c3e50, #1e2e36);
+    border: 2px solid rgba(52, 152, 219, 0.5);
+    border-radius: 12px;
+    padding: 0;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(52, 152, 219, 0.2);
+    z-index: 10002;
+    overflow: hidden;
+    animation: tutorial-modal-enter 0.3s ease-out;
+}
+
+@keyframes tutorial-modal-enter {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-step-counter {
+    font-size: 12px;
+    color: #bdc3c7;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tutorial-skip-btn {
+    background: transparent;
+    border: 1px solid #7f8c8d;
+    color: #95a5a6;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.tutorial-skip-btn:hover {
+    background-color: rgba(231, 76, 60, 0.2);
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.tutorial-content {
+    padding: 25px 25px 20px 25px;
+}
+
+.tutorial-content h2 {
+    margin: 0 0 15px 0;
+    font-size: 22px;
+    color: #ecf0f1;
+    font-weight: 600;
+}
+
+.tutorial-content p {
+    margin: 0;
+    font-size: 14px;
+    color: #bdc3c7;
+    line-height: 1.7;
+}
+
+.tutorial-content .highlight-key {
+    display: inline-block;
+    background-color: #34495e;
+    border: 1px solid #7f8c8d;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: #3498db;
+    margin: 0 2px;
+}
+
+.tutorial-content .highlight-text {
+    color: #3498db;
+    font-weight: 500;
+}
+
+.tutorial-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tutorial-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.tutorial-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #7f8c8d;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tutorial-dot:hover {
+    background-color: #95a5a6;
+}
+
+.tutorial-dot.active {
+    background-color: #3498db;
+    transform: scale(1.2);
+}
+
+.tutorial-dot.completed {
+    background-color: #2ecc71;
+}
+
+.tutorial-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.tutorial-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.tutorial-btn-primary {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    box-shadow: 0 2px 10px rgba(52, 152, 219, 0.3);
+}
+
+.tutorial-btn-primary:hover {
+    background: linear-gradient(135deg, #5dade2, #3498db);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+.tutorial-btn-secondary {
+    background: transparent;
+    color: #bdc3c7;
+    border: 1px solid #7f8c8d;
+}
+
+.tutorial-btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #bdc3c7;
+    color: #ecf0f1;
+}
+
+.tutorial-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* --- Interactive Tutorial Enhancements --- */
+
+/* Ghost element for drag animation demo */
+.tutorial-ghost {
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border: 2px solid #fff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 10005;
+    pointer-events: none;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+}
+
+.tutorial-ghost.animating {
+    animation: ghost-drag 2.5s ease-in-out infinite;
+}
+
+@keyframes ghost-drag {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0.8);
+    }
+
+    10% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translate(var(--drag-x), var(--drag-y)) scale(1);
+    }
+
+    60% {
+        opacity: 1;
+        transform: translate(var(--drag-x), var(--drag-y)) scale(1.1);
+    }
+
+    70% {
+        opacity: 0;
+        transform: translate(var(--drag-x), var(--drag-y)) scale(0.9);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0.8);
+    }
+}
+
+/* Tutorial task indicator */
+.tutorial-task {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2));
+    border: 1px solid #2ecc71;
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tutorial-task-icon {
+    font-size: 20px;
+}
+
+.tutorial-task-text {
+    font-size: 13px;
+    color: #2ecc71;
+    font-weight: 500;
+}
+
+.tutorial-task.completed {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.3));
+    border-color: #27ae60;
+}
+
+.tutorial-task.completed .tutorial-task-text {
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+/* Achievement popup */
+.tutorial-achievement {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: linear-gradient(145deg, #27ae60, #2ecc71);
+    border: 3px solid #fff;
+    border-radius: 16px;
+    padding: 30px 50px;
+    z-index: 10010;
+    text-align: center;
+    box-shadow: 0 10px 50px rgba(46, 204, 113, 0.5);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.tutorial-achievement.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.tutorial-achievement-icon {
+    font-size: 50px;
+    margin-bottom: 10px;
+    animation: bounce 0.6s ease infinite;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.tutorial-achievement-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tutorial-achievement-subtitle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Confetti particles */
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    z-index: 10009;
+    pointer-events: none;
+}
+
+.confetti.square {
+    border-radius: 2px;
+}
+
+.confetti.circle {
+    border-radius: 50%;
+}
+
+@keyframes confetti-fall {
+    0% {
+        opacity: 1;
+        transform: translateY(0) rotate(0deg);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(400px) rotate(720deg);
+    }
+}
+
+/* Waiting state - dims next button, shows pulsing task */
+.tutorial-btn.waiting {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.tutorial-task.waiting {
+    animation: task-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes task-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px rgba(46, 204, 113, 0);
+    }
+}
+
+/* Allow pointer events on workspace during interactive steps */
+.tutorial-overlay.interactive {
+    pointer-events: none;
+}
+
+.tutorial-overlay.interactive .tutorial-modal {
+    pointer-events: auto;
+}
+
+.tutorial-overlay.interactive .tutorial-highlight {
+    pointer-events: none;
+}
+
+/* Ghost demo nodes for connection animation */
+.tutorial-demo-node {
+    position: fixed;
+    width: 100px;
+    height: 70px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 2px solid #333;
+    border-radius: 6px;
+    z-index: 10003;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.tutorial-demo-node .demo-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+    text-transform: uppercase;
+}
+
+.tutorial-demo-node .demo-pin {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background-color: #555;
+    border-radius: 50%;
+    border: 2px solid #e74c3c;
+}
+
+.tutorial-demo-node .demo-pin.output {
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.tutorial-demo-node .demo-pin.input {
+    left: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Animated connection wire */
+.tutorial-demo-wire {
+    position: fixed;
+    z-index: 10002;
+    pointer-events: none;
+}
+
+.tutorial-demo-wire path {
+    fill: none;
+    stroke: #e74c3c;
+    stroke-width: 4px;
+    stroke-linecap: round;
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: draw-wire 1.5s ease-out forwards;
+}
+
+@keyframes draw-wire {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.tutorial-demo-wire path.flowing {
+    stroke-dasharray: 10, 5;
+    stroke-dashoffset: 0;
+    animation: flow 1s linear infinite;
+}
