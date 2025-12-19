@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panning & Selection State
     let panX = 0;
     let panY = 0;
+    let zoom = 1;
+    let zoomSensitivity = 1;
+    let panSensitivity = 1;
     let isPanning = false;
     let panStartX = 0;
     let panStartY = 0;
@@ -54,6 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'OR': { inputs: 2, outputs: 1, label: 'OR', desc: "Outputs ON if <b>either</b> or both inputs are ON." },
         'NOT': { inputs: 1, outputs: 1, label: 'NOT', desc: "Inverts the input signal. ON becomes OFF, and OFF becomes ON." },
         'XOR': { inputs: 2, outputs: 1, label: 'XOR', desc: "Exclusive OR. Outputs ON only if the inputs are <b>different</b> (one ON, one OFF)." },
+        'NAND': { inputs: 2, outputs: 1, label: 'NAND', desc: "NOT-AND gate. Outputs OFF only if <b>both</b> inputs are ON, otherwise ON." },
+        'NOR': { inputs: 2, outputs: 1, label: 'NOR', desc: "NOT-OR gate. Outputs ON only if <b>both</b> inputs are OFF." },
+        'XNOR': { inputs: 2, outputs: 1, label: 'XNOR', desc: "Exclusive NOR. Outputs ON only if the inputs are the <b>same</b> (both ON or both OFF)." },
         'Switch': { inputs: 0, outputs: 1, label: 'Switch', type: 'input', desc: "A manual toggle switch. Use this to send an ON/OFF signal into your circuit." },
         'Lever': { inputs: 0, outputs: 1, label: 'Lever', type: 'input', desc: "A variable input that outputs a specific <b>Number</b> value. Click config icon to set value." },
         'Dial': { inputs: 1, outputs: 0, label: 'Dial', type: 'output', desc: "Displays the numeric value of the input signal." },
@@ -80,6 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'OR': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 5 5 C 15 5 15 45 5 45 C 35 45 45 25 45 25 C 45 25 35 5 5 5 Z" /></svg>`,
         'NOT': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 10 10 V 40 L 35 25 Z" /><circle cx="40" cy="25" r="4" stroke="currentColor" stroke-width="3" fill="none"/></svg>`,
         'XOR': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 10 5 C 20 5 20 45 10 45 C 40 45 50 25 50 25 C 50 25 40 5 10 5 Z" /><path d="M 2 5 C 12 5 12 45 2 45" stroke="currentColor" stroke-width="3" fill="none"/></svg>`,
+        'NAND': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 8 5 H 20 A 20 20 0 0 1 20 45 H 8 V 5 Z" /><circle cx="42" cy="25" r="4" stroke="currentColor" stroke-width="3" fill="none"/></svg>`,
+        'NOR': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 5 5 C 15 5 15 45 5 45 C 30 45 38 25 38 25 C 38 25 30 5 5 5 Z" /><circle cx="44" cy="25" r="4" stroke="currentColor" stroke-width="3" fill="none"/></svg>`,
+        'XNOR': `<svg viewBox="0 0 50 50" class="gate-icon"><path class="fill-shape" d="M 8 5 C 16 5 16 45 8 45 C 32 45 40 25 40 25 C 40 25 32 5 8 5 Z" /><path d="M 2 5 C 10 5 10 45 2 45" stroke="currentColor" stroke-width="3" fill="none"/><circle cx="46" cy="25" r="4" stroke="currentColor" stroke-width="3" fill="none"/></svg>`,
         'SR Latch': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">SR</text></svg>`,
         'D Flip-Flop': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">D</text></svg>`,
         'JK Flip-Flop': `<svg viewBox="0 0 50 50" class="gate-icon"><rect x="5" y="5" width="40" height="40" stroke="currentColor" stroke-width="3" fill="none"/><text x="25" y="32" fill="currentColor" font-size="14" font-family="monospace" text-anchor="middle" font-weight="bold">JK</text></svg>`,
@@ -114,6 +123,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (qaMenuBtn) qaMenuBtn.addEventListener('click', toggleMenu);
     if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+
+    // Settings Modal
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsClose = document.getElementById('settings-close');
+    const zoomSensitivitySlider = document.getElementById('zoom-sensitivity');
+    const zoomSensitivityValue = document.getElementById('zoom-sensitivity-value');
+    const panSensitivitySlider = document.getElementById('pan-sensitivity');
+    const panSensitivityValue = document.getElementById('pan-sensitivity-value');
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+        });
+    }
+
+    if (settingsClose) {
+        settingsClose.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+    }
+
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (zoomSensitivitySlider) {
+        zoomSensitivitySlider.addEventListener('input', (e) => {
+            zoomSensitivity = parseFloat(e.target.value);
+            zoomSensitivityValue.textContent = zoomSensitivity.toFixed(1) + 'x';
+        });
+    }
+
+    if (panSensitivitySlider) {
+        panSensitivitySlider.addEventListener('input', (e) => {
+            panSensitivity = parseFloat(e.target.value);
+            panSensitivityValue.textContent = panSensitivity.toFixed(1) + 'x';
+        });
+    }
+
+    // Update Escape key to also close settings modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && settingsModal && !settingsModal.classList.contains('hidden')) {
+            settingsModal.classList.add('hidden');
+        }
+    });
 
     function toggleMenu() {
         if (componentMenu.classList.contains('hidden')) {
@@ -215,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     }
 
-    function toWorld(x, y) { return { x: x - panX, y: y - panY }; }
+    function toWorld(x, y) { return { x: (x - panX) / zoom, y: (y - panY) / zoom }; }
     function clearSelection() { selectedNodes.forEach(n => n.classList.remove('selected')); selectedNodes = []; }
     function addToSelection(node) {
         if (!selectedNodes.includes(node)) { selectedNodes.push(node); node.classList.add('selected'); }
@@ -490,6 +549,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     workspace.addEventListener('contextmenu', (e) => { if (placingType) { e.preventDefault(); cancelPlacing(); } });
 
+    // Wheel event for zoom and trackpad panning
+    workspace.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        if (e.ctrlKey) {
+            // Zoom with Ctrl + scroll (or pinch on trackpad)
+            const rect = workspace.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Get world position under cursor before zoom
+            const worldX = (mouseX - panX) / zoom;
+            const worldY = (mouseY - panY) / zoom;
+
+            // Calculate new zoom level with sensitivity
+            const baseZoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const zoomFactor = 1 + (baseZoomFactor - 1) * zoomSensitivity;
+            const newZoom = Math.min(3, Math.max(0.25, zoom * zoomFactor));
+
+            // Adjust pan to keep the point under cursor stationary
+            panX = mouseX - worldX * newZoom;
+            panY = mouseY - worldY * newZoom;
+            zoom = newZoom;
+
+            updateWorldTransform();
+        } else {
+            // Pan with two-finger scroll on trackpad (or regular scroll without Ctrl)
+            panX -= e.deltaX * panSensitivity;
+            panY -= e.deltaY * panSensitivity;
+            updateWorldTransform();
+        }
+    }, { passive: false });
+
+    function updateWorldTransform() {
+        world.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+        workspace.style.backgroundPosition = `${panX}px ${panY}px`;
+        workspace.style.backgroundSize = `${40 * zoom}px ${40 * zoom}px`;
+        updateConnections();
+    }
+
     document.addEventListener('mousemove', (e) => {
         // Safety: If dragging but no button pressed, stop.
         if (isDraggingNode && e.buttons === 0) {
@@ -506,8 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPanning) {
             panX += e.clientX - panStartX; panY += e.clientY - panStartY;
             panStartX = e.clientX; panStartY = e.clientY;
-            world.style.transform = `translate(${panX}px, ${panY}px)`;
-            workspace.style.backgroundPosition = `${panX}px ${panY}px`;
+            updateWorldTransform();
             return;
         }
 
@@ -525,8 +623,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingNode) {
             selectedNodes.forEach(node => {
-                node.style.left = `${parseFloat(node.style.left) + e.movementX}px`;
-                node.style.top = `${parseFloat(node.style.top) + e.movementY}px`;
+                node.style.left = `${parseFloat(node.style.left) + e.movementX / zoom}px`;
+                node.style.top = `${parseFloat(node.style.top) + e.movementY / zoom}px`;
             });
             updateConnections();
             if (trashBtn) {
@@ -710,6 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'OR': out = b0 || b1; break;
                     case 'NOT': out = !b0; break;
                     case 'XOR': out = b0 !== b1; break;
+                    case 'NAND': out = !(b0 && b1); break;
+                    case 'NOR': out = !(b0 || b1); break;
+                    case 'XNOR': out = b0 === b1; break;
                     case 'ADD': out = (Number(i0) || 0) + (Number(i1) || 0); break;
                     case 'SUB': out = (Number(i0) || 0) - (Number(i1) || 0); break;
                     case 'MUL': out = (Number(i0) || 0) * (Number(i1) || 0); break;
@@ -818,8 +919,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const clearBtn = document.getElementById('clear-btn');
-    if (clearBtn) clearBtn.addEventListener('click', () => window.location.reload());
+    const newBtn = document.getElementById('new-btn');
+    if (newBtn) {
+        newBtn.addEventListener('click', () => {
+            if (nodes.length === 0 && connections.length === 0) {
+                // Board is already empty, no need to confirm
+                return;
+            }
+            if (confirm('Are you sure you want to clear the board and start a new circuit?\n\nAll unsaved changes will be lost.')) {
+                // Clear all nodes
+                nodes.forEach(n => n.el.remove());
+                nodes = [];
+                // Clear all connections
+                connections.forEach(c => c.pathEl.remove());
+                connections = [];
+                // Reset state
+                nextNodeId = 1;
+                history = [];
+                historyStep = -1;
+                clearSelection();
+                closeSidebar();
+                updateSimulation();
+                saveState();
+            }
+        });
+    }
 
     updateSimulation();
     saveState();

@@ -16,6 +16,11 @@
     <div id="app">
         <!-- Top Navigation Bar -->
         <div id="top-bar">
+            <button id="new-btn" class="top-btn" title="New Circuit">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+            </button>
             <button id="save-btn" class="top-btn" title="Save">
                 <svg viewBox="0 0 24 24" width="24" height="24">
                     <path fill="currentColor"
@@ -42,6 +47,39 @@
                 </svg>
             </button>
             <input type="file" id="file-input" accept=".logic" style="display: none;">
+            <div style="flex: 1;"></div> <!-- Flex spacer to push settings to the right -->
+            <button id="settings-btn" class="top-btn" title="Settings">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button id="settings-close" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label for="zoom-sensitivity">Zoom Sensitivity</label>
+                        <div class="slider-row">
+                            <input type="range" id="zoom-sensitivity" min="0.5" max="2" step="0.1" value="1">
+                            <span id="zoom-sensitivity-value">1.0x</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label for="pan-sensitivity">Pan Sensitivity</label>
+                        <div class="slider-row">
+                            <input type="range" id="pan-sensitivity" min="0.5" max="2" step="0.1" value="1">
+                            <span id="pan-sensitivity-value">1.0x</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Full Screen Component Menu (Hidden by default) -->
@@ -94,6 +132,53 @@
                                     </svg>
                                 </div>
                                 <span>XOR</span>
+                            </div>
+                            <div class="menu-item" data-type="NAND" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 8 10 H 20 A 15 15 0 0 1 20 40 H 8 V 10 Z" fill="none" stroke="white"
+                                            stroke-width="4" />
+                                        <circle cx="38" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>NAND</span>
+                            </div>
+                            <div class="menu-item" data-type="NOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 C 15 10 15 40 5 40 C 28 40 35 25 35 25 C 35 25 28 10 5 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                        <circle cx="42" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>NOR</span>
+                            </div>
+                            <div class="menu-item" data-type="XNOR" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 C 18 10 18 40 10 40 C 30 40 38 25 38 25 C 38 25 30 10 10 10 Z"
+                                            fill="none" stroke="white" stroke-width="4" />
+                                        <path d="M 3 10 C 11 10 11 40 3 40" fill="none" stroke="white"
+                                            stroke-width="4" />
+                                        <circle cx="44" cy="25" r="4" stroke="white" stroke-width="3" fill="none" />
+                                    </svg>
+                                </div>
+                                <span>XNOR</span>
+                            </div>
+                            <div class="menu-item" data-type="Threshold" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 14px;">[Lo,Hi]</div>
+                                <span>Threshold</span>
+                            </div>
+                            <div class="menu-item" data-type="Numerical Switchbox" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 10 L 20 25 L 5 25" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 5 40 L 20 25 L 5 25" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 20 25 L 45 25" fill="none" stroke="white" stroke-width="3" />
+                                        <circle cx="45" cy="25" r="3" fill="white" />
+                                    </svg>
+                                </div>
+                                <span>Numerical Switchbox</span>
                             </div>
                         </div>
 
@@ -196,10 +281,6 @@
                                 <div class="menu-icon math-icon">/</div>
                                 <span>DIV</span>
                             </div>
-                            <div class="menu-item" data-type="Threshold" draggable="true">
-                                <div class="menu-icon math-icon" style="font-size: 14px;">[Lo,Hi]</div>
-                                <span>Threshold</span>
-                            </div>
                             <div class="menu-item" data-type="Function" draggable="true">
                                 <div class="menu-icon math-icon">f(x)</div>
                                 <span>Function</span>
@@ -215,10 +296,6 @@
                             <div class="menu-item" data-type="Less Than" draggable="true">
                                 <div class="menu-icon math-icon">&lt;</div>
                                 <span>Less Than</span>
-                            </div>
-                            <div class="menu-item" data-type="Numerical Switchbox" draggable="true">
-                                <div class="menu-icon math-icon" style="font-size: 14px;">Num SW</div>
-                                <span>Numerical Switchbox</span>
                             </div>
                         </div>
                     </div>
