@@ -1,0 +1,63 @@
+Visual & UX Enhancements
+Dark/Light Theme Toggle - Add a theme switcher for user preference------------------------------------(DONE)
+Minimap - Small overview panel showing the entire circuit with current viewport indicator
+Connection Preview - Show a ghost wire preview when hovering over compatible pins during wiring
+Component Labels - Allow users to add custom labels/names to gates for documentation
+Color-coded Skins - Let users customize gate colors for visual organization
+Shaped gates - The gates should be shaped according to the gate 
+
+🔧 Functionality
+Composite Components (Sub-circuits) - Allow grouping gates into reusable custom blocks
+Copy/Paste - Ctrl+C/V support for duplicating selected gates with their connections
+Component Search - Quick search bar in the TAB menu for finding gates by name
+Clock/Pulse Generator - A timer-based input that oscillates automatically
+Multi-bit Bus Wires - Support for bundled connections (e.g., 8-bit data buses)
+Breakpoints/Stepping - Pause simulation and step through logic changes
+
+📁 Project Management
+Auto-save/Recovery - Periodically save to localStorage with crash recovery
+Export as Image/SVG - Download circuit as a shareable image
+Circuit Templates - Pre-built example circuits (half-adder, flip-flops, counters)
+Cloud Sync - Optional account-based saving (future roadmap)
+
+⌨️ Keyboard & Accessibility
+More Keyboard Shortcuts - Quick keys for common gates (e.g., A for AND, O for OR)
+Grid Snapping Toggle - Option to snap gates to grid or free-place
+Connection Routing - Manual waypoints for cleaner wire paths
+Accessibility Labels - Screen reader support for educational use
+
+🎮 Learning & Gamification
+Truth Table View - Generate and display truth tables for selected circuits---------------------(DONE FOR GATES)
+Challenge Mode - Built-in puzzles ("Build a 2-bit adder")
+Timing Diagrams - Visual waveform display of signal changes over time
+
+
+Input Components (Value Sources)
+Component	Description
+Slider	A horizontal/vertical slider that outputs a value in a range (0-100, etc.)
+Knob/Rotary	A circular dial you can rotate to set a value
+Number Input	A text field where you type an exact number
+Button	Momentary push button (ON only while held)
+Keypad	Enter multi-digit numbers via keypad interface
+Clock/Oscillator	Automatic ON/OFF pulses at configurable frequency
+Stepper	Up/Down buttons to increment/decrement a value
+
+
+
+Output Components (Value Display)
+Component	Description
+7-Segment Display	Classic digital number display (like a calculator)
+Bar Graph/Meter	Visual bar that fills based on value (0-100%)
+Gauge	Analog-style semicircular meter with needle
+LED Array	Multiple LEDs that light up based on value (like volume bars)
+Binary Display	Shows value as binary bits (e.g., 01011010)
+Text/Label	Shows value with custom prefix/suffix text
+Color Lamp	Light that changes color based on value (heatmap style)
+Waveform/Scope	Shows history of values over time as a graph
+Hex Display	Shows value in hexadecimal format
+
+
+Combined I/O
+Component	Description
+LCD Screen	Multi-line text display with input formatting
+Probe Point	Debug node that shows live value inline on page

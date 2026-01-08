@@ -20,6 +20,11 @@
     --top-bar-border: #34495e;
 }
 
+body.dark-mode {
+    --bg-color: #2c3e50; /* Dark Grayish Blue */
+    --grid-line: rgba(255, 255, 255, 0.08); /* Fainter grid for dark mode */
+}
+
 body,
 html {
     margin: 0;
@@ -30,6 +35,7 @@ html {
     font-family: 'Roboto', sans-serif;
     background-color: var(--bg-color);
     color: white;
+    transition: background-color 0.5s ease;
 }
 
 #app {
@@ -93,6 +99,74 @@ html {
 #save-btn:hover {
     background-color: #2ecc71;
     color: white;
+}
+
+#delete-mode-btn {
+    color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+#delete-mode-btn:hover {
+    background-color: #e74c3c;
+    color: white;
+}
+
+#delete-mode-btn.active {
+    background-color: #e74c3c;
+    color: white;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.6);
+    animation: delete-pulse 1s ease-in-out infinite;
+}
+
+@keyframes delete-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(231, 76, 60, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.9);
+    }
+}
+
+/* Delete Mode Cursor and Node Styling */
+body.delete-mode #workspace {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg transform='rotate(45 12 12)'%3E%3Cline x1='12' y1='4' x2='12' y2='20' stroke='%23e74c3c' stroke-width='2'/%3E%3Cline x1='4' y1='12' x2='20' y2='12' stroke='%23e74c3c' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 12 12, crosshair;
+}
+
+body.delete-mode .node:not(.ghost) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg transform='rotate(45 12 12)'%3E%3Cline x1='12' y1='4' x2='12' y2='20' stroke='%23e74c3c' stroke-width='2'/%3E%3Cline x1='4' y1='12' x2='20' y2='12' stroke='%23e74c3c' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 12 12, crosshair;
+}
+
+body.delete-mode .node:not(.ghost):hover {
+    background-color: rgba(231, 76, 60, 0.85) !important;
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+    animation: delete-node-pulse 0.5s ease-in-out infinite;
+}
+
+body.delete-mode .node:not(.ghost):hover .node-header {
+    background-color: rgba(231, 76, 60, 0.95) !important;
+}
+
+body.delete-mode .node:not(.ghost):hover .node-body {
+    background-color: rgba(231, 76, 60, 0.85) !important;
+}
+
+@keyframes delete-node-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(231, 76, 60, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(231, 76, 60, 1);
+    }
+}
+
+body.delete-mode .wire {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg transform='rotate(45 12 12)'%3E%3Cline x1='12' y1='4' x2='12' y2='20' stroke='%23e74c3c' stroke-width='2'/%3E%3Cline x1='4' y1='12' x2='20' y2='12' stroke='%23e74c3c' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 12 12, crosshair;
 }
 
 #load-btn {
@@ -277,6 +351,10 @@ html {
     padding: 20px;
     background-color: #152026;
     border-bottom: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
 }
 
 .menu-header h2 {
@@ -284,6 +362,25 @@ html {
     font-size: 24px;
     letter-spacing: 2px;
     text-transform: uppercase;
+}
+
+#component-search {
+    background-color: #2c3e50;
+    border: 1px solid #34495e;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    margin: 5px 0;
+    width: 300px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#component-search:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
 }
 
 .hint {
@@ -329,6 +426,42 @@ html {
     line-height: 1.6;
 }
 
+/* Truth Table Styling */
+.truth-table {
+    border-collapse: collapse;
+    margin-top: 5px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+}
+
+.truth-table th,
+.truth-table td {
+    border: 1px solid #555;
+    padding: 4px 10px;
+    text-align: center;
+}
+
+.truth-table th {
+    background-color: #34495e;
+    color: #fff;
+    font-weight: bold;
+}
+
+.truth-table td {
+    background-color: #1e2e36;
+    color: #bdc3c7;
+}
+
+/* Code styling for formulas */
+.desc-text code {
+    background-color: #34495e;
+    color: #2ecc71;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+}
+
 .menu-section-title {
     color: #aaa;
     font-size: 16px;
@@ -368,6 +501,14 @@ html {
     border-color: #fff;
     background-color: #34495e;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.menu-item.hidden {
+    display: none !important;
+}
+
+.menu-section-title.hidden {
+    display: none !important;
 }
 
 .menu-icon {
@@ -1025,6 +1166,89 @@ path.wire-ghost {
     display: none;
 }
 
+/* Hide tooltips in delete mode */
+body.delete-mode .tooltip {
+    display: none !important;
+}
+
+/* Signal Probes */
+.signal-probe {
+    position: fixed;
+    background: rgba(20, 30, 40, 0.95);
+    border: 2px solid #3498db;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    z-index: 10000;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+    cursor: default;
+    user-select: none;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+}
+
+.signal-probe.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.signal-probe::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid rgba(20, 30, 40, 0.95);
+}
+
+.probe-value {
+    display: inline-block;
+}
+
+/* Probe state colors */
+.signal-probe.bool-on {
+    border-color: #27ae60;
+    background: rgba(39, 174, 96, 0.95);
+}
+
+.signal-probe.bool-on::after {
+    border-top-color: rgba(39, 174, 96, 0.95);
+}
+
+.signal-probe.bool-off {
+    border-color: #c0392b;
+    background: rgba(192, 57, 43, 0.95);
+}
+
+.signal-probe.bool-off::after {
+    border-top-color: rgba(192, 57, 43, 0.95);
+}
+
+.signal-probe.num-active {
+    border-color: #3498db;
+    background: rgba(52, 152, 219, 0.95);
+}
+
+.signal-probe.num-active::after {
+    border-top-color: rgba(52, 152, 219, 0.95);
+}
+
+.signal-probe.num-zero {
+    border-color: #7f8c8d;
+    background: rgba(127, 140, 141, 0.95);
+}
+
+.signal-probe.num-zero::after {
+    border-top-color: rgba(127, 140, 141, 0.95);
+}
+
 /* Sidebar Styles */
 .sidebar {
     position: fixed;
@@ -1632,4 +1856,22 @@ path.wire-ghost {
     stroke-dasharray: 10, 5;
     stroke-dashoffset: 0;
     animation: flow 1s linear infinite;
+}
+
+/* --- Minimap --- */
+#minimap {
+    position: fixed;
+    top: 50px; /* Below top bar */
+    right: 20px;
+    background-color: rgba(30, 46, 54, 0.8); /* Semi-transparent dark */
+    border: 2px solid #555;
+    border-radius: 4px;
+    z-index: 100; /* Above workspace, below overlays */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+#minimap:hover {
+    border-color: #3498db;
 }

@@ -47,6 +47,13 @@
                 </svg>
             </button>
             <input type="file" id="file-input" accept=".logic" style="display: none;">
+            <div style="width: 20px;"></div> <!-- Spacer -->
+            <button id="delete-mode-btn" class="top-btn" title="Delete Mode (Del)">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor"
+                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+            </button>
             <div style="flex: 1;"></div> <!-- Flex spacer to push settings to the right -->
             <button id="settings-btn" class="top-btn" title="Settings">
                 <svg viewBox="0 0 24 24" width="24" height="24">
@@ -67,15 +74,22 @@
                     <div class="setting-group">
                         <label for="zoom-sensitivity">Zoom Sensitivity</label>
                         <div class="slider-row">
-                            <input type="range" id="zoom-sensitivity" min="0.5" max="2" step="0.1" value="1">
-                            <span id="zoom-sensitivity-value">1.0x</span>
+                            <input type="range" id="zoom-sensitivity" min="0.25" max="2" step="0.05" value="0.5">
+                            <span id="zoom-sensitivity-value">0.5x</span>
                         </div>
                     </div>
                     <div class="setting-group">
                         <label for="pan-sensitivity">Pan Sensitivity</label>
                         <div class="slider-row">
-                            <input type="range" id="pan-sensitivity" min="0.5" max="2" step="0.1" value="1">
-                            <span id="pan-sensitivity-value">1.0x</span>
+                            <input type="range" id="pan-sensitivity" min="0.25" max="2" step="0.05" value="0.5">
+                            <span id="pan-sensitivity-value">0.5x</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label>Dark Mode</label>
+                        <div class="slider-row" style="justify-content: flex-start;">
+                            <div id="dark-mode-toggle" class="toggle-switch" style="margin: 0;"></div>
+                            <span>Off</span>
                         </div>
                     </div>
                 </div>
@@ -87,6 +101,7 @@
             <div class="menu-window">
                 <div class="menu-header">
                     <h2>Select Component</h2>
+                    <input type="text" id="component-search" placeholder="Search components..." autocomplete="off">
                     <span class="hint">Press TAB to Resume</span>
                 </div>
 
@@ -179,6 +194,23 @@
                                     </svg>
                                 </div>
                                 <span>Numerical Switchbox</span>
+                            </div>
+                            <div class="menu-item" data-type="Buffer" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 V 40 L 40 25 Z" fill="none" stroke="white" stroke-width="4" />
+                                    </svg>
+                                </div>
+                                <span>Buffer</span>
+                            </div>
+                            <div class="menu-item" data-type="Tri-State" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 10 10 V 40 L 40 25 Z" fill="none" stroke="white" stroke-width="4" />
+                                        <line x1="25" y1="45" x2="25" y2="35" stroke="white" stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>Tri-State</span>
                             </div>
                         </div>
 
@@ -281,6 +313,50 @@
                                 <div class="menu-icon math-icon">/</div>
                                 <span>DIV</span>
                             </div>
+                            <div class="menu-item" data-type="MOD" draggable="true">
+                                <div class="menu-icon math-icon">%</div>
+                                <span>MOD</span>
+                            </div>
+                            <div class="menu-item" data-type="POW" draggable="true">
+                                <div class="menu-icon math-icon">x^y</div>
+                                <span>POW</span>
+                            </div>
+                            <div class="menu-item" data-type="SQRT" draggable="true">
+                                <div class="menu-icon math-icon">√</div>
+                                <span>SQRT</span>
+                            </div>
+                            <div class="menu-item" data-type="ABS" draggable="true">
+                                <div class="menu-icon math-icon">|x|</div>
+                                <span>ABS</span>
+                            </div>
+                            <div class="menu-item" data-type="NEG" draggable="true">
+                                <div class="menu-icon math-icon">-x</div>
+                                <span>NEG</span>
+                            </div>
+                            <div class="menu-item" data-type="MIN" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 14px;">min</div>
+                                <span>MIN</span>
+                            </div>
+                            <div class="menu-item" data-type="MAX" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 14px;">max</div>
+                                <span>MAX</span>
+                            </div>
+                            <div class="menu-item" data-type="CLAMP" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 12px;">clamp</div>
+                                <span>CLAMP</span>
+                            </div>
+                            <div class="menu-item" data-type="ROUND" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 12px;">round</div>
+                                <span>ROUND</span>
+                            </div>
+                            <div class="menu-item" data-type="FLOOR" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 12px;">floor</div>
+                                <span>FLOOR</span>
+                            </div>
+                            <div class="menu-item" data-type="CEIL" draggable="true">
+                                <div class="menu-icon math-icon" style="font-size: 14px;">ceil</div>
+                                <span>CEIL</span>
+                            </div>
                             <div class="menu-item" data-type="Function" draggable="true">
                                 <div class="menu-icon math-icon">f(x)</div>
                                 <span>Function</span>
@@ -296,6 +372,86 @@
                             <div class="menu-item" data-type="Less Than" draggable="true">
                                 <div class="menu-icon math-icon">&lt;</div>
                                 <span>Less Than</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section-title">Signal / Utility</div>
+                        <div class="menu-grid">
+                            <div class="menu-item" data-type="Constant" draggable="true">
+                                <div class="menu-icon math-icon" style="color: #2ecc71; border-color: #2ecc71;">C</div>
+                                <span>Constant</span>
+                            </div>
+                            <div class="menu-item" data-type="Delay" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <circle cx="25" cy="25" r="18" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 25 12 V 25 L 35 30" fill="none" stroke="white" stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>Delay</span>
+                            </div>
+                            <div class="menu-item" data-type="Pulse" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 30 H 15 V 15 H 25 V 30 H 45" fill="none" stroke="white"
+                                            stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>Pulse</span>
+                            </div>
+                            <div class="menu-item" data-type="Debounce" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 5 25 Q 10 10, 15 25 Q 20 40, 25 25 Q 30 10, 35 25 L 45 25"
+                                            fill="none" stroke="white" stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>Debounce</span>
+                            </div>
+                            <div class="menu-item" data-type="Counter" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="8" y="10" width="34" height="30" fill="none" stroke="white"
+                                            stroke-width="3" rx="3" />
+                                        <text x="25" y="32" fill="white" font-size="16" font-family="monospace"
+                                            text-anchor="middle" font-weight="bold">123</text>
+                                    </svg>
+                                </div>
+                                <span>Counter</span>
+                            </div>
+                            <div class="menu-item" data-type="Timer" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <circle cx="25" cy="27" r="16" fill="none" stroke="white" stroke-width="3" />
+                                        <path d="M 25 15 V 27 L 32 32" fill="none" stroke="white" stroke-width="2" />
+                                        <rect x="20" y="5" width="10" height="6" fill="none" stroke="white"
+                                            stroke-width="2" />
+                                    </svg>
+                                </div>
+                                <span>Timer</span>
+                            </div>
+                            <div class="menu-item" data-type="Random" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="10" y="10" width="30" height="30" rx="5" fill="none" stroke="white"
+                                            stroke-width="3" />
+                                        <circle cx="20" cy="20" r="3" fill="white" />
+                                        <circle cx="30" cy="30" r="3" fill="white" />
+                                        <circle cx="25" cy="25" r="3" fill="white" />
+                                    </svg>
+                                </div>
+                                <span>Random</span>
+                            </div>
+                            <div class="menu-item" data-type="Up/Down Counter" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <rect x="8" y="12" width="34" height="26" fill="none" stroke="white"
+                                            stroke-width="3" rx="3" />
+                                        <path d="M 18 18 L 25 12 L 32 18" fill="none" stroke="white" stroke-width="2" />
+                                        <path d="M 18 32 L 25 38 L 32 32" fill="none" stroke="white" stroke-width="2" />
+                                    </svg>
+                                </div>
+                                <span>Up/Down Counter</span>
                             </div>
                         </div>
                     </div>
@@ -340,6 +496,8 @@
             <!-- Selection Box -->
             <div id="selection-box" class="hidden"></div>
         </div>
+        
+        <canvas id="minimap" width="200" height="150"></canvas>
 
         <!-- Configuration Sidebar -->
         <div id="config-sidebar" class="sidebar hidden">
@@ -417,7 +575,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
