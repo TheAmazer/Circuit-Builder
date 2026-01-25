@@ -1,6 +1,6 @@
 // gateDefinitions.js
 
-export const configurableTypes = ['Lever', 'Threshold', 'Function', 'Memory Register', 'Delay', 'Debounce', 'Random', 'Constant'];
+export const configurableTypes = ['Switch', 'Lever', 'Light', 'Dial', 'Threshold', 'Function', 'Memory Register', 'Delay', 'Debounce', 'Random', 'Constant'];
 
 export const componentDefinitions = {
     'AND': { inputs: 2, outputs: 1, label: 'AND', desc: "Outputs ON only if <b>both</b> inputs are ON.<br><br><table class='truth-table'><tr><th>A</th><th>B</th><th>Out</th></tr><tr><td>0</td><td>0</td><td>0</td></tr><tr><td>0</td><td>1</td><td>0</td></tr><tr><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>1</td><td>1</td></tr></table>" },

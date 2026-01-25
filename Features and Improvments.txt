@@ -1,8 +1,8 @@
 Visual & UX Enhancements
 Dark/Light Theme Toggle - Add a theme switcher for user preference------------------------------------(DONE)
-Minimap - Small overview panel showing the entire circuit with current viewport indicator
+Minimap - Small overview panel showing the entire circuit with current viewport indicator-------------(DONE)
 Connection Preview - Show a ghost wire preview when hovering over compatible pins during wiring
-Component Labels - Allow users to add custom labels/names to gates for documentation
+Component Labels - Allow users to add custom labels/names to gates for documentation------------------(DONE)
 Color-coded Skins - Let users customize gate colors for visual organization
 Shaped gates - The gates should be shaped according to the gate 
 
@@ -21,13 +21,13 @@ Circuit Templates - Pre-built example circuits (half-adder, flip-flops, counters
 Cloud Sync - Optional account-based saving (future roadmap)
 
 ⌨️ Keyboard & Accessibility
-More Keyboard Shortcuts - Quick keys for common gates (e.g., A for AND, O for OR)
-Grid Snapping Toggle - Option to snap gates to grid or free-place
+Hotkeys - Quick keys that can be configured and toggle gates-----------------------------------------(DONE)
+Grid Snapping Toggle - Option to snap gates to grid or free-place------------------------------------(DONE)
 Connection Routing - Manual waypoints for cleaner wire paths
 Accessibility Labels - Screen reader support for educational use
 
 🎮 Learning & Gamification
-Truth Table View - Generate and display truth tables for selected circuits---------------------(DONE FOR GATES)
+Truth Table View - Generate and display truth tables for selected circuits---------------------------(DONE FOR GATES)
 Challenge Mode - Built-in puzzles ("Build a 2-bit adder")
 Timing Diagrams - Visual waveform display of signal changes over time
 

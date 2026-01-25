@@ -198,9 +198,22 @@ export function updateSimulation(nodes, connections) {
     nodes.forEach(n => {
         // Update Config Display
         const display = n.el.querySelector('.config-display');
-        if (display) {
-            if (n.type === 'Lever') display.innerText = `Val: ${n.config.value}`;
-            else if (n.type === 'Threshold') display.innerText = `${n.config.min} < x < ${n.config.max}`;
+        const hotkeyDisplay = n.el.querySelector('.hotkey-display');
+        
+        if (n.type === 'Switch' && hotkeyDisplay) {
+            hotkeyDisplay.innerText = n.config.hotkey ? `[${n.config.hotkey.toUpperCase()}]` : '';
+        }
+
+        if (n.type === 'Lever') {
+            if (display) display.innerText = `Val: ${parseFloat(n.config.value).toFixed(3)}`;
+            if (hotkeyDisplay) {
+                const up = n.config.hotkeyUp ? n.config.hotkeyUp.toUpperCase() : '';
+                const down = n.config.hotkeyDown ? n.config.hotkeyDown.toUpperCase() : '';
+                if (up || down) hotkeyDisplay.innerText = `[${down}/${up}]`;
+                else hotkeyDisplay.innerText = '';
+            }
+        } else if (display) {
+            if (n.type === 'Threshold') display.innerText = `${n.config.min} < x < ${n.config.max}`;
             else if (n.type === 'Function') display.innerText = n.config.formula;
             else if (n.type === 'Memory Register') display.innerText = `Rst: ${n.config.resetVal}`;
             else if (n.type === 'Delay') display.innerText = `${n.config.ticks} tick${n.config.ticks > 1 ? 's' : ''}`;
@@ -267,4 +280,8 @@ export function getConnectionValue(connection, nodes) {
             }
             return false;
     }
+}
+
+export function snapCoordinate(value, gridSize = 20) {
+    return Math.round(value / gridSize) * gridSize;
 }

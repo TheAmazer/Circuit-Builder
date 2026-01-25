@@ -3,6 +3,7 @@
 let tutorialOverlay, tutorialHighlight, tutorialModal, tutorialTitle, tutorialText;
 let tutorialStepCounter, tutorialDots, tutorialPrev, tutorialNext, tutorialSkip;
 let tutorialGhost, tutorialAchievement, tutorialTask, tutorialTaskText, tutorialDemoContainer;
+let tutorialMedia, tutorialVideo;
 let componentMenu, sidebar, sidebarTitle, sidebarContent;
 
 let currentTutorialStep = 0;
@@ -62,7 +63,7 @@ const tutorialSteps = [
         highlight: null,
         modalPosition: 'top-right',
         transparent: true,
-        showConnectionAnimation: true
+        videoUrl: 'connection_demo.mp4'
     },
     {
         title: "Configuring Gates",
@@ -101,6 +102,8 @@ export function initTutorial(getNodesFunc, assignSlotCb, activeConfigIdGetter) {
     tutorialTask = document.getElementById('tutorial-task');
     tutorialTaskText = document.getElementById('tutorial-task-text');
     tutorialDemoContainer = document.getElementById('tutorial-demo-container');
+    tutorialMedia = document.getElementById('tutorial-media');
+    tutorialVideo = document.getElementById('tutorial-video');
 
     componentMenu = document.getElementById('component-menu');
     sidebar = document.getElementById('config-sidebar');
@@ -146,6 +149,8 @@ function endTutorial() {
     tutorialTask.style.display = 'none';
     tutorialAchievement.classList.remove('show');
     tutorialDemoContainer.style.display = 'none';
+    tutorialMedia.classList.add('hidden');
+    tutorialVideo.pause();
     tutorialWaitingForAction = false;
     tutorialNext.classList.remove('waiting');
 
@@ -200,6 +205,8 @@ function showStep(stepIndex) {
     tutorialGhost.classList.remove('animating');
     tutorialTask.style.display = 'none';
     tutorialDemoContainer.style.display = 'none';
+    tutorialMedia.classList.add('hidden');
+    tutorialVideo.pause();
     tutorialWaitingForAction = false;
     tutorialNext.classList.remove('waiting');
 
@@ -242,6 +249,12 @@ function showStep(stepIndex) {
 
     if (step.showConnectionAnimation) {
         startConnectionAnimation();
+    }
+
+    if (step.videoUrl) {
+        tutorialMedia.classList.remove('hidden');
+        tutorialVideo.src = step.videoUrl;
+        tutorialVideo.play().catch(e => console.log('Autoplay failed', e));
     }
 
     if (step.interactive) {

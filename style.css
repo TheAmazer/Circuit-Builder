@@ -460,6 +460,7 @@ body.delete-mode .wire {
     border-radius: 3px;
     font-family: 'Roboto Mono', monospace;
     font-size: 13px;
+    color: #3498db;
 }
 
 .menu-section-title {
@@ -1302,24 +1303,41 @@ body.delete-mode .tooltip {
 }
 
 .sidebar-input-group {
-    margin-bottom: 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar-input-group label {
-    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #95a5a6;
     margin-bottom: 5px;
-    font-size: 12px;
-    color: #bdc3c7;
+    font-weight: 600;
+    display: block;
 }
 
 .sidebar-input-group input {
     width: 100%;
-    padding: 8px;
-    background-color: #34495e;
-    border: 1px solid #7f8c8d;
-    color: white;
-    border-radius: 4px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ecf0f1;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    padding: 5px 0;
+    border-radius: 0;
     box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.sidebar-input-group input:focus {
+    outline: none;
+    border-bottom-color: #3498db;
 }
 
 .config-display {
@@ -1328,6 +1346,19 @@ body.delete-mode .tooltip {
     font-family: 'Roboto Mono', monospace;
     text-align: center;
     margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.hotkey-display {
+    font-size: 11px;
+    color: #e67e22; /* Orange for hotkey visibility */
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1477,6 +1508,29 @@ body.delete-mode .tooltip {
     font-size: 14px;
     color: #bdc3c7;
     line-height: 1.7;
+}
+
+.tutorial-media {
+    margin-top: 15px;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #34495e;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tutorial-media.hidden {
+    display: none;
+}
+
+#tutorial-video {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 200px;
 }
 
 .tutorial-content .highlight-key {
@@ -1874,4 +1928,69 @@ body.delete-mode .tooltip {
 
 #minimap:hover {
     border-color: #3498db;
+}
+
+/* --- Mode Selector (Lever) --- */
+.mode-selector {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mode-label {
+    font-size: 12px;
+    color: #bdc3c7;
+    margin-right: auto;
+}
+
+.mode-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mode-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background-color: #34495e;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    background-color: #3498db;
+}
+
+.mode-btn.active {
+    background-color: #3498db;
+}
+
+.mode-value {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    color: white;
+    min-width: 60px;
+    text-align: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.mode-value.flow-in {
+    animation: flowIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes flowIn {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }

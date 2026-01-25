@@ -1,6 +1,6 @@
 // script.js
 import { componentDefinitions, gateSVGs, ioSVGs, pinDescriptions, configurableTypes } from './gateDefinitions.js';
-import { updateSimulation, getConnectionValue } from './simulation.js';
+import { updateSimulation, getConnectionValue, snapCoordinate } from './simulation.js';
 import { initTutorial, checkTutorialTaskCompletion } from './tutorial.js';
 import { initMinimap, drawMinimap } from './minimap.js';
 import { initWiring, startWiring, updateGhostLine, finishWiring, cancelWiring, createConnection, updateConnections, getWiringStatus } from './wiring.js';
@@ -56,6 +56,9 @@ let nodes = [];
 let connections = [];
 let nextNodeId = 1;
 let isDraggingNode = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragStartPositions = new Map();
 let selectedNodes = [];
 
 // Panning & Selection State
@@ -84,6 +87,56 @@ let ghostNode = null;
 // Delete Mode State
 let isDeleteMode = false;
 
+// Input State for Continuous Control
+const activeKeys = new Set();
+
+// Snap to Grid State
+let snapToGrid = false;
+
+// --- Continuous Input Loop ---
+function updateContinuousInputs() {
+    let changed = false;
+    nodes.forEach(node => {
+        if (node.type === 'Lever' && node.config.controlMode === 'curve') {
+            // Apply a modifier to make the default sensitivity (1) usable in continuous mode
+            // 0.05 multiplier means at 60FPS, sensitivity 1 changes value by ~3.0 per second
+            const sensitivity = (node.config.sensitivity !== undefined ? node.config.sensitivity : 1) * 0.05;
+            const upKey = node.config.hotkeyUp;
+            const downKey = node.config.hotkeyDown;
+            
+            let valChange = 0;
+            if (upKey && activeKeys.has(upKey.toLowerCase())) valChange += sensitivity;
+            if (downKey && activeKeys.has(downKey.toLowerCase())) valChange -= sensitivity;
+
+            if (valChange !== 0) {
+                let newVal = (node.config.value || 0) + valChange;
+                
+                // Clamp Value
+                if (node.config.min !== undefined && newVal < node.config.min) newVal = node.config.min;
+                if (node.config.max !== undefined && newVal > node.config.max) newVal = node.config.max;
+                
+                node.config.value = newVal;
+                changed = true;
+                
+                // Update Sidebar if open
+                if (activeConfigNodeId === node.id) {
+                    const valInput = sidebarContent.querySelector('input[type="number"]'); // Assuming Value is first
+                    if (valInput) valInput.value = node.config.value.toFixed(3);
+                }
+            }
+        }
+    });
+
+    if (changed) {
+        updateSimulation(nodes, connections);
+        // Note: We don't saveState() every frame to avoid history spam. 
+        // Maybe save on keyup?
+    }
+    
+    requestAnimationFrame(updateContinuousInputs);
+}
+requestAnimationFrame(updateContinuousInputs);
+
 // --- Menu & Placing Logic ---
 const descTitle = document.getElementById('desc-title');
 const descText = document.getElementById('desc-text');
@@ -99,6 +152,47 @@ document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { e.target.blur(); } // Blur input on Escape
         return;
     }
+    
+    // Track keys for continuous input
+    activeKeys.add(e.key.toLowerCase());
+
+    // Hotkey Handling for Components
+    nodes.forEach(node => {
+        if (node.type === 'Switch' && node.config.hotkey && node.config.hotkey.toLowerCase() === e.key.toLowerCase()) {
+            const switchEl = node.el.querySelector('.toggle-switch');
+            if (switchEl) {
+                switchEl.classList.toggle('on');
+                updateSimulation(nodes, connections);
+                saveState();
+            }
+        } else if (node.type === 'Lever' && (!node.config.controlMode || node.config.controlMode === 'direct')) {
+            // Direct Mode (Step on Keydown)
+            const sensitivity = node.config.sensitivity !== undefined ? node.config.sensitivity : 1;
+            let changed = false;
+            
+            if (node.config.hotkeyUp && node.config.hotkeyUp.toLowerCase() === e.key.toLowerCase()) {
+                node.config.value = (node.config.value || 0) + sensitivity;
+                changed = true;
+            }
+            if (node.config.hotkeyDown && node.config.hotkeyDown.toLowerCase() === e.key.toLowerCase()) {
+                node.config.value = (node.config.value || 0) - sensitivity;
+                changed = true;
+            }
+
+            if (changed) {
+                // Clamp Value
+                if (node.config.min !== undefined && node.config.value < node.config.min) node.config.value = node.config.min;
+                if (node.config.max !== undefined && node.config.value > node.config.max) node.config.value = node.config.max;
+
+                updateSimulation(nodes, connections);
+                if (activeConfigNodeId === node.id) {
+                     const inputs = sidebarContent.querySelectorAll('input[type="number"]');
+                     if (inputs[0]) inputs[0].value = node.config.value.toFixed(3);
+                }
+                saveState();
+            }
+        }
+    });
 
     if (e.key === 'Tab') { e.preventDefault(); toggleMenu(); }
     if (e.key === 'Escape') {
@@ -118,6 +212,21 @@ document.addEventListener('keydown', (e) => {
     if ((e.key >= '0' && e.key <= '9')) {
         const slot = document.querySelector(`.qa-slot[data-slot="${e.key}"]`);
         if (slot && slot.dataset.type) startPlacing(slot.dataset.type);
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (activeKeys.has(e.key.toLowerCase())) {
+        activeKeys.delete(e.key.toLowerCase());
+        
+        // If we were influencing a continuous control, save state now that interaction stopped
+        const relevantNode = nodes.find(n => 
+            n.type === 'Lever' && 
+            n.config.controlMode === 'curve' && 
+            ((n.config.hotkeyUp && n.config.hotkeyUp.toLowerCase() === e.key.toLowerCase()) || 
+             (n.config.hotkeyDown && n.config.hotkeyDown.toLowerCase() === e.key.toLowerCase()))
+        );
+        if (relevantNode) saveState();
     }
 });
 
@@ -150,6 +259,7 @@ const zoomSensitivityValue = document.getElementById('zoom-sensitivity-value');
 const panSensitivitySlider = document.getElementById('pan-sensitivity');
 const panSensitivityValue = document.getElementById('pan-sensitivity-value');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
+const snapGridToggle = document.getElementById('snap-grid-toggle');
 
 if (settingsBtn) {
     settingsBtn.addEventListener('click', () => {
@@ -182,6 +292,14 @@ if (panSensitivitySlider) {
     panSensitivitySlider.addEventListener('input', (e) => {
         panSensitivity = parseFloat(e.target.value);
         panSensitivityValue.textContent = panSensitivity.toFixed(1) + 'x';
+    });
+}
+
+if (snapGridToggle) {
+    snapGridToggle.addEventListener('click', (e) => {
+        snapGridToggle.classList.toggle('on');
+        snapToGrid = snapGridToggle.classList.contains('on');
+        snapGridToggle.nextElementSibling.innerText = snapToGrid ? "On" : "Off";
     });
 }
 
@@ -354,9 +472,131 @@ function openSidebar(nodeId) {
     activeConfigNodeId = nodeId;
     sidebarTitle.innerText = `${node.type} Config`;
     sidebarContent.innerHTML = '';
-    if (node.type === 'Lever') {
+
+    // Common Config: Label (Rename)
+    const labelInput = createSidebarInput('Label', 'text', node.config.label || componentDefinitions[node.type].label, (val) => {
+        node.config.label = val;
+        const header = node.el.querySelector('.node-header');
+        if (header) {
+            const span = header.querySelector('span');
+            if (span) span.innerText = val;
+            adjustHeaderFontSize(header);
+        }
+        saveState();
+    });
+    labelInput.maxLength = 23;
+    
+    // Add note for character limit
+    const note = document.createElement('small');
+    note.style.color = '#95a5a6';
+    note.style.fontSize = '11px';
+    note.style.marginTop = '4px';
+    note.style.display = 'block';
+    note.innerText = 'Max 23 characters';
+    labelInput.parentNode.appendChild(note);
+
+    if (node.type === 'Switch') {
+        createSidebarHotkeyInput('Hotkey', node.config.hotkey || '', (val) => {
+            node.config.hotkey = val; saveState();
+        });
+    } else if (node.type === 'Lever') {
         createSidebarInput('Value', 'number', node.config.value || 0, (val) => {
-            node.config.value = parseFloat(val); updateSimulation(nodes, connections); saveState();
+            node.config.value = parseFloat(val);
+            // Clamp if limits exist
+            if (node.config.min !== undefined && node.config.value < node.config.min) node.config.value = node.config.min;
+            if (node.config.max !== undefined && node.config.value > node.config.max) node.config.value = node.config.max;
+            updateSimulation(nodes, connections); saveState();
+        });
+
+        createSidebarInput('Min Value', 'number', node.config.min !== undefined ? node.config.min : -Infinity, (val) => {
+             const v = parseFloat(val);
+             node.config.min = isNaN(v) ? -Infinity : v;
+             // Re-clamp value
+             if (node.config.value < node.config.min) { node.config.value = node.config.min; updateSimulation(nodes, connections); }
+             saveState();
+        });
+
+        createSidebarInput('Max Value', 'number', node.config.max !== undefined ? node.config.max : Infinity, (val) => {
+             const v = parseFloat(val);
+             node.config.max = isNaN(v) ? Infinity : v;
+             // Re-clamp value
+             if (node.config.value > node.config.max) { node.config.value = node.config.max; updateSimulation(nodes, connections); }
+             saveState();
+        });
+
+        // Control Mode Selection (Visual)
+        const modeSelector = document.createElement('div');
+        modeSelector.className = 'mode-selector';
+        
+        const modeLabel = document.createElement('div');
+        modeLabel.className = 'mode-label';
+        modeLabel.innerText = 'Mode';
+        modeSelector.appendChild(modeLabel);
+
+        const modeControls = document.createElement('div');
+        modeControls.className = 'mode-controls';
+
+        const leftBtn = document.createElement('button');
+        leftBtn.className = 'mode-btn';
+        leftBtn.innerHTML = '&#9664;'; // Left Arrow
+        
+        const modeDisplay = document.createElement('span');
+        modeDisplay.className = 'mode-value';
+        
+        const rightBtn = document.createElement('button');
+        rightBtn.className = 'mode-btn';
+        rightBtn.innerHTML = '&#9654;'; // Right Arrow
+
+        const updateModeUI = (animate = false) => {
+            const currentMode = node.config.controlMode || 'direct';
+            const text = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
+            
+            if (animate) {
+                // Remove class to reset animation if needed (though replacing text usually warrants a new flow)
+                modeDisplay.classList.remove('flow-in');
+                void modeDisplay.offsetWidth; // Force reflow
+                modeDisplay.innerText = text;
+                modeDisplay.classList.add('flow-in');
+            } else {
+                modeDisplay.innerText = text;
+            }
+            
+            if (currentMode === 'direct') {
+                leftBtn.classList.remove('active');
+                rightBtn.classList.add('active');
+            } else {
+                leftBtn.classList.add('active');
+                rightBtn.classList.remove('active');
+            }
+        };
+
+        const toggleMode = () => {
+            node.config.controlMode = (node.config.controlMode === 'curve') ? 'direct' : 'curve';
+            updateModeUI(true);
+            saveState();
+        };
+
+        leftBtn.onclick = toggleMode;
+        rightBtn.onclick = toggleMode;
+
+        modeControls.appendChild(leftBtn);
+        modeControls.appendChild(modeDisplay);
+        modeControls.appendChild(rightBtn);
+        modeSelector.appendChild(modeControls);
+        sidebarContent.appendChild(modeSelector);
+        
+        updateModeUI();
+        
+        createSidebarHotkeyInput('Increase Hotkey', node.config.hotkeyUp || '', (val) => {
+            node.config.hotkeyUp = val; saveState();
+        });
+
+        createSidebarHotkeyInput('Decrease Hotkey', node.config.hotkeyDown || '', (val) => {
+            node.config.hotkeyDown = val; saveState();
+        });
+
+        createSidebarInput('Sensitivity', 'number', node.config.sensitivity || 1, (val) => {
+            node.config.sensitivity = parseFloat(val); saveState();
         });
     } else if (node.type === 'Threshold') {
         createSidebarInput('Min Value', 'number', node.config.min || 0, (val) => {
@@ -406,9 +646,79 @@ function createSidebarInput(label, type, value, onChange) {
     inputEl.type = type;
     inputEl.value = value;
     inputEl.addEventListener('input', (e) => onChange(e.target.value));
-    if (type === 'number') inputEl.step = '0.1';
+    if (type === 'number') inputEl.step = 'any';
     group.appendChild(inputEl);
     sidebarContent.appendChild(group);
+    return inputEl;
+}
+
+function createSidebarHotkeyInput(label, value, onChange) {
+    const group = document.createElement('div');
+    group.className = 'sidebar-input-group';
+    const labelEl = document.createElement('label');
+    labelEl.innerText = label;
+    group.appendChild(labelEl);
+    
+    const inputEl = document.createElement('input');
+    inputEl.type = 'text';
+    inputEl.value = value ? value.toUpperCase() : 'NONE';
+    inputEl.readOnly = true;
+    inputEl.style.cursor = 'pointer';
+    inputEl.style.textAlign = 'center';
+    inputEl.title = 'Click to assign key, Backspace to clear';
+
+    inputEl.addEventListener('click', () => {
+        inputEl.value = 'Press any key...';
+        inputEl.classList.add('assigning');
+        
+        const handler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                inputEl.value = 'NONE';
+                onChange('');
+            } else {
+                // Ignore modifier keys alone
+                if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+                
+                inputEl.value = e.key.toUpperCase();
+                onChange(e.key);
+            }
+            
+            inputEl.classList.remove('assigning');
+            document.removeEventListener('keydown', handler, true);
+            inputEl.blur();
+        };
+        
+        document.addEventListener('keydown', handler, true);
+        
+        // Remove listener if user clicks away
+        const blurHandler = () => {
+            if (inputEl.value === 'Press any key...') {
+                inputEl.value = value ? value.toUpperCase() : 'NONE';
+            }
+            inputEl.classList.remove('assigning');
+            document.removeEventListener('keydown', handler, true);
+            inputEl.removeEventListener('blur', blurHandler);
+        };
+        inputEl.addEventListener('blur', blurHandler);
+    });
+
+    group.appendChild(inputEl);
+    sidebarContent.appendChild(group);
+    return inputEl;
+}
+
+function adjustHeaderFontSize(header) {
+    const span = header.querySelector('span');
+    if (!span) return;
+    const text = span.innerText;
+    let fontSize = 14;
+    if (text.length > 15) {
+        fontSize = Math.max(8, 14 * (15 / text.length));
+    }
+    header.style.fontSize = `${fontSize}px`;
 }
 
 function closeSidebar() {
@@ -417,9 +727,9 @@ function closeSidebar() {
     closeSettings();
 }
 
-function createNode(type, x, y, isGhost = false) {
+function createNode(type, x, y, isGhost = false, providedId = null) {
     const def = componentDefinitions[type];
-    const id = isGhost ? `ghost-${Date.now()}` : `node-${nextNodeId++}`;
+    const id = providedId || (isGhost ? `ghost-${Date.now()}` : `node-${nextNodeId++}`);
     const nodeEl = document.createElement('div');
     nodeEl.classList.add('node');
     nodeEl.id = id;
@@ -432,6 +742,7 @@ function createNode(type, x, y, isGhost = false) {
     header.classList.add('node-header');
     header.innerHTML = `<span>${def.label}</span>`;
     nodeEl.appendChild(header);
+    adjustHeaderFontSize(header);
 
     if (!isGhost && configurableTypes.includes(type)) {
         const configIcon = document.createElement('div');
@@ -473,7 +784,7 @@ function createNode(type, x, y, isGhost = false) {
     if (type === 'Switch') {
         const switchControl = document.createElement('div');
         switchControl.className = 'node-control';
-        switchControl.innerHTML = '<div class="toggle-switch"></div>';
+        switchControl.innerHTML = '<div class="toggle-switch"></div><div class="hotkey-display"></div>';
         if (!isGhost) {
             switchControl.querySelector('.toggle-switch').onclick = function () {
                 this.classList.toggle('on');
@@ -481,6 +792,35 @@ function createNode(type, x, y, isGhost = false) {
             };
         }
         body.appendChild(switchControl);
+    } else if (type === 'Dial') {
+        const dialControl = document.createElement('div');
+        dialControl.className = 'node-control';
+        dialControl.innerHTML = '<div class="dial-display">0.00</div>';
+        body.appendChild(dialControl);
+    } else if (type === 'Light') {
+        const lightControl = document.createElement('div');
+        lightControl.className = 'node-control';
+        lightControl.innerHTML = '<div class="light-indicator"></div>';
+        body.appendChild(lightControl);
+    } else if (type === 'Lever') {
+        const leverControl = document.createElement('div');
+        leverControl.className = 'node-control';
+        
+        const iconDiv = document.createElement('div');
+        // Use the defined SVG for Lever
+        if (ioSVGs[type]) iconDiv.innerHTML = ioSVGs[type];
+        leverControl.appendChild(iconDiv);
+        
+        const configDisplay = document.createElement('div');
+        configDisplay.className = 'config-display';
+        configDisplay.innerText = '...';
+        leverControl.appendChild(configDisplay);
+
+        const hotkeyDisplay = document.createElement('div');
+        hotkeyDisplay.className = 'hotkey-display';
+        leverControl.appendChild(hotkeyDisplay);
+        
+        body.appendChild(leverControl);
     } else if (configurableTypes.includes(type)) {
         const container = document.createElement('div');
         container.className = 'node-control';
@@ -493,16 +833,6 @@ function createNode(type, x, y, isGhost = false) {
         display.innerText = '...';
         container.appendChild(display);
         body.appendChild(container);
-    } else if (type === 'Dial') {
-        const dialControl = document.createElement('div');
-        dialControl.className = 'node-control';
-        dialControl.innerHTML = '<div class="dial-display">0.00</div>';
-        body.appendChild(dialControl);
-    } else if (type === 'Light') {
-        const lightControl = document.createElement('div');
-        lightControl.className = 'node-control';
-        lightControl.innerHTML = '<div class="light-indicator"></div>';
-        body.appendChild(lightControl);
     } else if (gateSVGs[type]) {
         const iconContainer = document.createElement('div');
         iconContainer.className = 'node-control';
@@ -585,6 +915,15 @@ function createNode(type, x, y, isGhost = false) {
             if (!e.shiftKey && !selectedNodes.includes(nodeEl)) clearSelection();
             addToSelection(nodeEl);
             isDraggingNode = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragStartPositions.clear();
+            selectedNodes.forEach(n => {
+                dragStartPositions.set(n, {
+                    x: parseFloat(n.style.left) || 0,
+                    y: parseFloat(n.style.top) || 0
+                });
+            });
         });
 
         const nodeData = { id, type, el: nodeEl, memory: {}, config: {} };
@@ -710,7 +1049,15 @@ workspace.addEventListener('mousedown', (e) => {
         if (placingType) {
             const rect = workspace.getBoundingClientRect();
             const wPos = toWorld(e.clientX - rect.left, e.clientY - rect.top);
-            createNode(placingType, wPos.x - 70, wPos.y - 30);
+            let placeX = wPos.x - 70;
+            let placeY = wPos.y - 30;
+            
+            if (snapToGrid) {
+                placeX = snapCoordinate(placeX);
+                placeY = snapCoordinate(placeY);
+            }
+            
+            createNode(placingType, placeX, placeY);
             cancelPlacing(); saveState(); return;
         }
         if (e.target === workspace || e.target === world || e.target === svgLayer) {
@@ -804,9 +1151,21 @@ document.addEventListener('mousemove', (e) => {
     }
 
     if (isDraggingNode) {
+        const deltaX = (e.clientX - dragStartX) / zoom;
+        const deltaY = (e.clientY - dragStartY) / zoom;
+
         selectedNodes.forEach(node => {
-            const newX = parseFloat(node.style.left) + e.movementX / zoom;
-            const newY = parseFloat(node.style.top) + e.movementY / zoom;
+            const startPos = dragStartPositions.get(node);
+            if (!startPos) return;
+
+            let newX = startPos.x + deltaX;
+            let newY = startPos.y + deltaY;
+            
+            if (snapToGrid) {
+                newX = snapCoordinate(newX);
+                newY = snapCoordinate(newY);
+            }
+            
             node.style.left = `${newX}px`;
             node.style.top = `${newY}px`;
 
@@ -1052,18 +1411,19 @@ function loadCircuit(data) {
         const numId = parseInt(nData.id.replace('node-', ''));
         if (!isNaN(numId) && numId >= maxId) maxId = numId;
 
-        const nodeEl = createNode(nData.type, nData.x, nData.y);
+        const nodeEl = createNode(nData.type, nData.x, nData.y, false, nData.id);
         const nodeObj = nodes[nodes.length - 1];
-
-        nodeObj.id = nData.id; nodeEl.id = nData.id; nodeEl.dataset.id = nData.id;
-        const pins = nodeEl.querySelectorAll('.pin');
-        pins.forEach(p => p.dataset.node = nData.id);
 
         if (nData.type === 'Switch' && nData.isOn) nodeEl.querySelector('.toggle-switch').classList.add('on');
 
         // Restore Config
         if (nData.config) {
             nodeObj.config = { ...nData.config };
+            if (nodeObj.config.label) {
+                const header = nodeEl.querySelector('.node-header');
+                header.querySelector('span').innerText = nodeObj.config.label;
+                adjustHeaderFontSize(header);
+            }
         } else {
             if (nData.value !== undefined) nodeObj.config.value = nData.value;
             if (nData.min !== undefined) nodeObj.config.min = nData.min;

@@ -86,6 +86,13 @@
                         </div>
                     </div>
                     <div class="setting-group">
+                        <label>Snap to Grid</label>
+                        <div class="slider-row" style="justify-content: flex-start;">
+                            <div id="snap-grid-toggle" class="toggle-switch" style="margin: 0;"></div>
+                            <span>Off</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
                         <label>Dark Mode</label>
                         <div class="slider-row" style="justify-content: flex-start;">
                             <div id="dark-mode-toggle" class="toggle-switch" style="margin: 0;"></div>
@@ -557,6 +564,11 @@
                 <div class="tutorial-content">
                     <h2 id="tutorial-title">Welcome!</h2>
                     <p id="tutorial-text">Tutorial content goes here...</p>
+                    <div id="tutorial-media" class="tutorial-media hidden">
+                        <video id="tutorial-video" loop muted playsinline>
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
                     <div id="tutorial-task" class="tutorial-task" style="display: none;">
                         <span class="tutorial-task-icon">🎯</span>
                         <span class="tutorial-task-text" id="tutorial-task-text">Complete the task...</span>

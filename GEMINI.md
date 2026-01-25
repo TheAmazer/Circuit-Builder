@@ -13,10 +13,18 @@ This project allows users to design and simulate logic circuits directly in the 
 - **Function Gate:** A programmable math gate where users can enter custom formulas (e.g., `x * 2 + 1`).
 - **Logic Utility Gates:** **Threshold** (outputs ON if input is within a range), **Numerical Switchbox** (switches between two numerical inputs based on a boolean control signal).
 - **Signal/Utility Gates:** **Constant** (fixed value output), **Delay** (outputs after N ticks), **Pulse** (single pulse on rising edge), **Debounce** (filters rapid changes), **Random** (random value generator).
-- **Lever Input:** A new input component allowing users to set a floating-point value.
+- **Lever Input:** A new input component allowing users to set a floating-point value. **Advanced features:**
+  - **Min/Max Limits:** Constrain the output value within a specific range.
+  - **Control Modes:** **Direct** (Step change) or **Curve** (Continuous smooth change).
+  - **Hotkeys:** Assign keys to increase/decrease the value.
 - **Dial Output:** A new output component to display numerical values.
 - **Threshold Gate:** A logic gate that outputs ON if its numerical input is within a user-defined (Min/Max) range.
+- **Hotkey System:**
+  - Assign keyboard shortcuts to **Switches** (Toggle) and **Levers** (Up/Down).
+  - **Visual Feedback:** Assigned hotkeys are displayed on the component (e.g., `[W]`, `[S/W]`).
 - **Visual Interface:**
+  - **Modernized Sidebar:** Configuration inputs now use a transparent "Dark Card" aesthetic with flow animations for mode switching.
+  - **Visual Selectors:** Replaced standard dropdowns with graphical arrow toggles for Lever modes.
   - Brighter blue grid theme.
   - Logic gates are now single white boxes with the name at the top center.
   - SVG-based logic symbols.
@@ -40,7 +48,7 @@ This project allows users to design and simulate logic circuits directly in the 
   - **Quick Access Bar:** **Expanded to 10 slots (1-0 for keyboard shortcuts)** for frequent components (Drag from menu to assign), with a dedicated **Menu Button**.
   - **Component Menu:** Full-screen overlay (TAB) with descriptions, now features a **smooth animated opening/closing** without darkening the background. Logic section includes utility gates (Threshold, Numerical Switchbox).
   - **Component Search:** Added a search bar to the TAB menu header. Users can type to filter components by name. The search bar auto-focuses on open and clears on close.
-  - **Configurable Gates:** Gates like Threshold, Function, Lever, and Memory Register now display their configured values directly on the node. To edit these values, click the small gear icon in the top-right corner of the node or double-click the node to open a **sidebar**. The sidebar allows easy modification of parameters (Min/Max, Formula, Value, Reset Value).
+  - **Configurable Gates:** Gates like Threshold, Function, Lever, and Memory Register now display their configured values directly on the node. To edit these values, click the small gear icon in the top-right corner of the node or double-click the node to open a **sidebar**. The sidebar allows easy modification of parameters (Min/Max, Formula, Value, Reset Value). **All configurable components (including Switches, Levers, Lights, Dials) can now be renamed** via a "Label" field in the sidebar (Max 23 characters).
   - **Navigation:** Infinite canvas panning (Middle Mouse Button or two-finger trackpad scroll). **Zoom** with Ctrl+scroll or trackpad pinch (0.25x to 3x).
   - **Selection:** Drag-box selection and multi-move capability with animated visual feedback.
   - **Editing:** Delete nodes via Trash Bin (Drag to bottom right) or Delete key. **Dragging a wire between already connected pins will now toggle (delete) the connection.**
@@ -59,6 +67,7 @@ This project allows users to design and simulate logic circuits directly in the 
     - **Wire Visuals:** Fixed an issue where the wire connection line did not start from the correct position on the pin when dragging, now accounting for zoom and pin centering.
     - **Connection Type Safety:** Implemented strict type checking to prevent invalid connections between Boolean (Red) and Numerical (Green) pins.
     - **Hotkey Conflict:** Fixed an issue where hotkeys (0-9 for Quick Access, Delete/Backspace) would trigger while typing in input fields (like the Component Search or Value Config). Hotkeys are now disabled when an input is focused.
+    - **Snap to Grid Jitter:** Fixed an issue where enabling "Snap to Grid" caused sticky or jerky movement when dragging nodes. The dragging logic now calculates positions based on the total distance moved from the start, rather than incremental updates, ensuring smooth and accurate snapping.
 - **Simulation:** Instant feedback loop for logic states (Red/Green wires, Light indicators), now with numerical propagation.
 
 ## Tech Stack

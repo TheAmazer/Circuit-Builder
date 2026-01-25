@@ -4,6 +4,110 @@ This file documents changes made to the Circuit Builder project.
 
 ---
 
+## January 10, 2026
+
+### Hotkey Display & Visual Refinements
+Enhanced visual feedback for hotkeys and modernized the configuration sidebar.
+
+**Files Modified:**
+- `script.js` - Updated node creation to include hotkey labels, implemented visual mode selector for Lever.
+- `style.css` - Added styles for hotkey display, redesigned sidebar inputs to match "Dark Card" aesthetic, added mode switch animation.
+- `simulation.js` - Updated simulation loop to populate hotkey labels.
+
+**Features:**
+- **Hotkey Labels:** Switches and Levers now display their assigned hotkeys (e.g., `[W]`, `[S/W]`) directly on the node.
+- **Visual Mode Selector:** Replaced the "Control Mode" dropdown for Levers with a graphical arrow-based selector.
+- **Sidebar Theme:** Updated all sidebar inputs to a cleaner, flat dark theme with transparent backgrounds and subtle underlines, matching the new visual direction.
+- **Animations:** Added smooth flow animations when switching Lever control modes.
+
+### Visual Experimentation (Reverted)
+Briefly implemented and then reverted a "Shaped Gates" feature (where nodes took the shape of their logic symbol) based on user feedback. The standard rectangular node style with icons remains the design choice for consistency.
+
+---
+
+### Label Scaling and Limits
+Implemented constraints and visual adjustments for renameable components.
+
+**Files Modified:**
+- `script.js` - Added `adjustHeaderFontSize` function, updated label handling in `createNode`, `openSidebar`, `loadCircuit`.
+
+**Features:**
+- **Character Limit:** Custom labels are now restricted to a maximum of 23 characters (reduced from 32 to prevent overflow).
+- **Dynamic Font Scaling:** Node header text automatically reduces in size (from 14px down to ~9px) as the label gets longer (> 15 characters) to ensure it fits within the node boundaries.
+- **UI Feedback:** Added "Max 23 characters" note in the settings sidebar.
+
+---
+
+### Hotkey System & Lever Enhancements
+Implemented a robust hotkey system and significantly upgraded the Lever component's capabilities.
+
+**Files Modified:**
+- `script.js` - Added hotkey logic (direct & continuous), upgraded sidebar config, updated event handlers.
+- `simulation.js` - Updated `updateSimulation` to display assigned hotkeys on nodes and handle new config values.
+- `style.css` - Added styling for `.hotkey-display` and sidebar inputs.
+
+**Features:**
+- **Hotkeys:**
+  - **Switch:** Toggle ON/OFF with a designated key.
+  - **Lever:** Control value with "Increase" and "Decrease" keys.
+  - **Visual Feedback:** Assigned hotkeys are displayed directly on the component in the workspace (e.g., `[W]`, `[S/W]`).
+- **Advanced Lever Control:**
+  - **Control Modes:** Choose between **Direct** (Step) and **Curve** (Continuous) modes.
+  - **Sensitivity:** Configurable rate of change. In "Curve" mode, sensitivity is intelligently scaled (0.05x) for smooth operation.
+  - **Value Limits:** Configurable **Min** and **Max** values. The lever value is clamped within this range.
+  - **Precision:** Value display is limited to 3 decimal places for cleaner UI.
+
+### Bug Fixes
+- **Save/Load Integrity:** Fixed an issue where loading a circuit broke the configuration sidebar. The loader now correctly preserves Node IDs, ensuring event listeners remain valid.
+- **Icon Restoration:** Fixed a regression where the Lever icon was replaced by a generic symbol. Restored the original SVG slider icon.
+
+---
+
+### Light and Dial Rendering Fix
+Fixed an issue where Lights and Dials lost their visual indicators after making them renameable.
+
+**Files Modified:**
+- `script.js` - Reordered `createNode` logic.
+
+**Changes:**
+- Prioritized specific rendering logic for `Dial` and `Light` over the generic `configurableTypes` handler.
+- Ensures they display their functional UI (dial number, light bulb) while still supporting the configuration sidebar for renaming.
+
+---
+
+### Renameable Components
+Added the ability to rename input/output components (and other configurable nodes) via the settings sidebar.
+
+**Files Modified:**
+- `gateDefinitions.js` - Added 'Switch', 'Light', 'Dial' to `configurableTypes`.
+- `script.js` - Updated `openSidebar` to add "Label" input, updated `loadCircuit` to restore labels.
+- `GEMINI.md` - Updated documentation.
+
+**Features:**
+- **Custom Labels:** Users can now assign custom names to Switches, Levers, Lights, Dials, and other configurable components.
+- **Sidebar Integration:** A new "Label" input field appears at the top of the configuration sidebar.
+- **Visual Update:** The node header text updates in real-time when the label is changed.
+- **Persistence:** Custom labels are saved and loaded with the circuit file.
+
+---
+
+### Snap to Grid Fix
+Fixed "sticky" and "janky" behavior when dragging nodes with Snap to Grid enabled.
+
+**Files Modified:**
+- `script.js` - Updated dragging logic.
+- `GEMINI.md` - Updated documentation.
+
+**Changes:**
+- **Refactored Dragging Logic:** Changed `mousemove` handler to calculate new positions based on the *total delta* from the drag start position, rather than accumulating small `movementX/Y` increments.
+- **State Management:** Introduced `dragStartX`, `dragStartY`, and `dragStartPositions` map to track initial states during a drag operation.
+
+**Result:**
+- Dragging nodes with "Snap to Grid" on is now smooth and predictable.
+- Eliminates rounding errors that caused nodes to stick to their previous positions until rapid mouse movement occurred.
+
+---
+
 ## January 8, 2026
 
 ### UI Enhancements

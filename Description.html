@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Logic Gate Circuit Builder - Project Description</title>
+<style>
+    body { font-family: 'Calibri', 'Arial', sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; }
+    h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    h2 { color: #2980b9; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+    h3 { color: #16a085; margin-top: 20px; }
+    ul { margin-bottom: 15px; }
+    li { margin-bottom: 5px; }
+    code { background-color: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: 'Consolas', monospace; color: #c0392b; }
+    .note { background-color: #e8f6f3; padding: 15px; border-left: 5px solid #1abc9c; margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<h1>Logic Gate Circuit Builder - Project Description</h1>
+
+<h2>Overview</h2>
+<p>The <strong>Logic Gate Circuit Builder</strong> is a web-based visual simulation tool inspired by the Stormworks microcontroller editor. It allows users to design, build, and simulate complex logic circuits directly in the browser using a modern, drag-and-drop interface. The application supports both boolean logic and numerical (floating-point) signal processing.</p>
+
+<h2>1. Component Library</h2>
+<p>The project features a comprehensive library of components ranging from basic logic gates to advanced mathematical functions.</p>
+
+<h3>Logic Gates</h3>
+<ul>
+    <li><strong>Basic:</strong> AND, OR, NOT, XOR, NAND, NOR, XNOR.</li>
+    <li><strong>Utility:</strong>
+        <ul>
+            <li><strong>Buffer:</strong> Passes signal unchanged.</li>
+            <li><strong>Tri-State:</strong> Controlled buffer (High-Z simulation).</li>
+            <li><strong>Threshold:</strong> Outputs ON if input is within a configurable range (Min/Max).</li>
+            <li><strong>Numerical Switchbox:</strong> Switches between two numerical inputs based on a boolean control signal.</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>Input / Output</h3>
+<ul>
+    <li><strong>Switch:</strong> Manual toggle switch for Boolean input (ON/OFF). Supports <strong>Hotkeys</strong>.</li>
+    <li><strong>Lever:</strong> Slider-configurable numerical input. Features <strong>Min/Max limits</strong>, <strong>Hotkeys</strong> (Up/Down), and <strong>Curve/Direct control modes</strong>.</li>
+    <li><strong>Constant:</strong> Outputs a fixed, configurable numerical value.</li>
+    <li><strong>Light:</strong> Visual indicator that glows when receiving a signal.</li>
+    <li><strong>Dial:</strong> Displays numerical values on a digital readout.</li>
+</ul>
+
+<h3>Math Gates</h3>
+<p>Performs operations on numerical signals (Green wires).</p>
+<ul>
+    <li><strong>Arithmetic:</strong> ADD, SUB, MUL, DIV, MOD (Modulo).</li>
+    <li><strong>Functions:</strong> POW (Power), SQRT (Square Root), ABS (Absolute), NEG (Negate).</li>
+    <li><strong>Rounding:</strong> ROUND, FLOOR, CEIL.</li>
+    <li><strong>Comparison:</strong> Equal, Greater Than, Less Than.</li>
+    <li><strong>Range:</strong> MIN, MAX, CLAMP.</li>
+    <li><strong>Function Gate:</strong> Programmable gate where users can enter custom JS-like formulas (e.g., <code>x * 2 + 1</code>).</li>
+</ul>
+
+<h3>Memory & State</h3>
+<ul>
+    <li><strong>Flip-Flops:</strong> SR Latch, D Flip-Flop, JK Flip-Flop, T Flip-Flop.</li>
+    <li><strong>Memory Register:</strong> Stores a numerical value on a rising edge trigger.</li>
+    <li><strong>Counters:</strong>
+        <ul>
+            <li><strong>Counter:</strong> Simple up-counter.</li>
+            <li><strong>Up/Down Counter:</strong> Bidirectional counter.</li>
+            <li><strong>Timer:</strong> Measures time in ticks.</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>Signal Utilities</h3>
+<ul>
+    <li><strong>Delay:</strong> Outputs the input signal after N ticks.</li>
+    <li><strong>Pulse:</strong> Generates a single-tick pulse on a rising edge.</li>
+    <li><strong>Debounce:</strong> Filters rapid signal changes to prevent noise.</li>
+    <li><strong>Random:</strong> Generates random numbers within a range.</li>
+</ul>
+
+<h2>2. Visual Interface</h2>
+<p>The interface is designed for clarity and ease of use, featuring a "blueprint" aesthetic.</p>
+<ul>
+    <li><strong>Theme:</strong> Brighter blue grid background with contrasting white components.</li>
+    <li><strong>Dark Mode:</strong> Optional dark grayish-blue background (<code>#2c3e50</code>) for reduced eye strain, toggleable via settings.</li>
+    <li><strong>Visuals:</strong>
+        <ul>
+            <li><strong>SVG rendering</strong> for crisp icons and smooth Bezier curve wires.</li>
+            <li><strong>Animated Wires:</strong> Wires animate with a "flowing" effect when carrying a signal (Red for active Boolean, Green for non-zero Number).</li>
+            <li><strong>Pin Styling:</strong> Color-coded pins (Red for Boolean, Green for Number) for easy identification.</li>
+            <li><strong>Selection:</strong> "Marching ants" animation for selected nodes.</li>
+        </ul>
+    </li>
+</ul>
+
+<h2>3. Interaction & Usability</h2>
+
+<h3>Core Editing</h3>
+<ul>
+    <li><strong>Drag & Drop:</strong> Smooth dragging with "Snap to Grid" support (toggleable).</li>
+    <li><strong>Wiring:</strong> Click-and-drag to connect pins.
+        <ul>
+            <li><strong>Type Safety:</strong> Prevents connecting incompatible pins (Boolean to Number).</li>
+            <li><strong>Auto-Routing:</strong> Smooth Bezier curves automatically adjust as nodes move.</li>
+            <li><strong>Deleting Wires:</strong> Dragging a wire between already connected pins disconnects them.</li>
+        </ul>
+    </li>
+    <li><strong>Selection:</strong> Box selection (drag background) and multi-select (Shift+Click). Move multiple nodes at once.</li>
+    <li><strong>Delete Mode:</strong> Dedicated mode (Trash icon or Delete key) to click-delete nodes and wires.</li>
+</ul>
+
+<h3>Configuration</h3>
+<ul>
+    <li><strong>Sidebar:</strong> Double-click any configurable node (or click the gear icon) to open the settings sidebar.</li>
+    <li><strong>Renameable Components:</strong> Custom labels (Max 23 chars) for Switches, Levers, Lights, Dials, etc., with dynamic font scaling.</li>
+    <li><strong>Parameters:</strong> Adjust values like Threshold ranges, Lever values, Delay ticks, and Math formulas.</li>
+</ul>
+
+<h3>Navigation</h3>
+<ul>
+    <li><strong>Infinite Canvas:</strong> Pan (Middle Mouse or Two-finger scroll) and Zoom (Scroll wheel or Pinch) freely.</li>
+    <li><strong>Minimap:</strong> A real-time navigation aid in the top-right showing the entire circuit layout. Click to jump to location.</li>
+</ul>
+
+<h3>Menus & Shortcuts</h3>
+<ul>
+    <li><strong>Component Menu (TAB):</strong> Full-screen overlay with search functionality and detailed descriptions/truth tables.</li>
+    <li><strong>Quick Access Bar:</strong> 10 slots (Keys 1-0) for frequently used components. Drag from menu to assign.</li>
+    <li><strong>Undo/Redo:</strong> Full history support for all actions.</li>
+    <li><strong>Save/Load:</strong> Export circuits to <code>.logic</code> JSON files and import them back.</li>
+</ul>
+
+<h3>Tutorial</h3>
+<ul>
+    <li><strong>Interactive Guide:</strong> Step-by-step tutorial for new users, featuring animated ghosts, confetti rewards, and hands-on tasks.</li>
+</ul>
+
+<h2>4. Simulation Engine</h2>
+<ul>
+    <li><strong>Real-Time:</strong> The circuit simulates instantly as you build.</li>
+    <li><strong>Hybrid Signals:</strong> Supports both Boolean (True/False) and Numerical (Float) types.</li>
+    <li><strong>Propagation:</strong> Logic propagates through wires and gates with support for feedback loops (via memory components).</li>
+    <li><strong>Probes:</strong> Hover over any wire to see its live value (Boolean state or exact Number).</li>
+</ul>
+
+<h2>5. Technical Stack</h2>
+<ul>
+    <li><strong>Frontend:</strong> Vanilla JavaScript (ES6+), HTML5, CSS3.</li>
+    <li><strong>Architecture:</strong> Modular ES6 design (Simulation, Rendering, Wiring, Interaction separated).</li>
+    <li><strong>No Dependencies:</strong> Built entirely without external libraries or frameworks.</li>
+</ul>
+
+</body>
+</html>
