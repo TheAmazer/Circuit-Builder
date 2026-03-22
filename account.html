@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeCraft - Account Settings</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="account-page-body">
+    <div class="account-dashboard-shell">
+        <div class="account-dashboard-topbar">
+            <button id="account-back-btn" class="account-back-btn">← Back to Builder</button>
+            <div class="account-topbar-title">Account Dashboard</div>
+        </div>
+
+        <main class="account-dashboard-main">
+            <section class="account-card profile">
+                <h2>Profile</h2>
+                <p class="account-muted">Manage your display identity in NodeCraft.</p>
+
+                <div class="account-field-row">
+                    <label>Email</label>
+                    <div id="account-email" class="account-static-value">-</div>
+                </div>
+
+                <div class="account-avatar-row">
+                    <img id="account-avatar-preview" class="account-avatar-preview" src="" alt="Avatar Preview">
+                    <form id="avatar-form" class="account-form avatar-form">
+                        <label for="avatar-url-input">Avatar URL</label>
+                        <input id="avatar-url-input" type="text" placeholder="https://example.com/avatar.png">
+                        <small>Supports https URLs or data:image URIs.</small>
+                        <button type="submit" class="account-action-btn">Update Avatar</button>
+                    </form>
+                </div>
+
+                <form id="username-form" class="account-form">
+                    <label for="username-input">Username</label>
+                    <input id="username-input" type="text" maxlength="32" placeholder="letters, numbers, underscore only">
+                    <small>Shown in the account dropdown when set.</small>
+                    <button type="submit" class="account-action-btn">Update Username</button>
+                </form>
+            </section>
+
+            <section class="account-card security">
+                <h2>Security</h2>
+                <p class="account-muted">Change your password for email/password sign-ins.</p>
+
+                <form id="password-form" class="account-form">
+                    <label for="new-password-input">New Password</label>
+                    <input id="new-password-input" type="password" minlength="6" placeholder="Minimum 6 characters">
+
+                    <label for="confirm-password-input">Confirm Password</label>
+                    <input id="confirm-password-input" type="password" minlength="6" placeholder="Repeat your new password">
+
+                    <button type="submit" class="account-action-btn danger">Update Password</button>
+                </form>
+
+                <hr class="account-divider">
+
+                <div class="account-delete-zone">
+                    <h3>Delete Account</h3>
+                    <p class="account-muted">This action is permanent and cannot be undone.</p>
+                    <div class="account-delete-row">
+                        <input id="delete-confirm-input" type="text" placeholder="Type DELETE to confirm">
+                        <button id="delete-account-btn" class="account-action-btn danger">Delete Account</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div id="account-status" class="account-status hidden"></div>
+    </div>
+
+    <script type="module" src="scripts/account.js"></script>
+</body>
+</html>
