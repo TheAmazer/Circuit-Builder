@@ -1,4 +1,24 @@
 Visual & UX Enhancements
+AI Assistant - Build/analyse/correct circuits from a prompt; verifies itself via truth table------(DONE)
+  (client-side loop, serverless proxy, provider adapter: Gemini / OpenRouter / Grok; sign-in gated)
+Simulation Tick + Run/Pause/Step - Fixed-rate 20/sec tick------------------------------------------(DONE)
+Clock/Pulse Generator - Free-running oscillator with configurable period---------------------------(DONE)
+BUG FIX: Timer/Delay/Debounce advanced per settle pass (up to 20x too fast)------------------------(DONE)
+Right-Click Context Menu - Group/ungroup, block details, copy/cut/duplicate/delete, paste, select all--------(DONE)
+Block Create/Edit Dialog - Name, description, port-count preview, editable pin names------------------------(DONE)
+TAB Menu Hover Tooltips - Component name + one-line summary, animated-----------------------------------------(DONE)
+Unified Component Icon Theme - One light tile for all gates (matches node body); category by ring colour----(DONE)
+Removed "Stock" chip from TAB menu right panel----------------------------------------------------------------(DONE)
+Landing Page Stormworks Alignment - Unified theme with simulator (tokens, top bar, buttons, panels)---------(DONE)
+Top Bar Components Button - Open the TAB menu without the keyboard shortcut----------------------------------(DONE)
+Escape Closes Component Menu - Previously TAB was the only keyboard exit-------------------------------------(DONE)
+Motion Pass - Shared easing/duration tokens, staggered menu entrance, control feedback, node drop-in---------(DONE)
+Reduced Motion Support - Honours the OS prefers-reduced-motion setting---------------------------------------(DONE)
+BUG FIX: Minimap Blank After Placing a Component (node x/y never stored; bounds went NaN) --------------------(DONE)
+BUG FIX: Minimap HiDPI Blur + Click-to-Pan Border Offset + Unusable Fixed Padding ---------------------------(DONE)
+BUG FIX: Mojibake Characters (SQRT icon, tutorial icons, copyright symbol) ----------------------------------(DONE)
+Persistent Settings - Zoom/Pan sensitivity, Snap to Grid, Dark Mode survive reloads ------------------------(DONE)
+Unsaved Changes Warning - Confirm before refresh/close with unsaved circuit --------------------------------(DONE)
 BUG FIX: Component Menu UI Overhaul (Grid fixed, layout restored, modal layering issues resolved) ----------------------------(DONE)
 1080p Responsive Polish - Reduced zoomed-in feel for simulator + save modal----------------------------------(DONE)
 Social Media Links - Interactive icons for Instagram, X, Discord with brand colors----------(DONE)
@@ -22,7 +42,7 @@ Dark/Light Theme Toggle - Add a theme switcher for user preference--------------
 Microcontroller Management Menu - Stormworks-style submenu for Cloud Save/Load----(DONE)
 Logo-style Save Button - Vertical icon + blue text button in Management Menu-----(DONE)
 Minimap - Small overview panel showing the entire circuit with current viewport indicator-------------(DONE)
-Simulator UI Stormworks Alignment Pass (simulator-only; landing page untouched)--------------------(DONE)
+Simulator UI Stormworks Alignment Pass (was simulator-only; landing page since aligned Aug 2026)---(DONE)
 TAB Menu Focus Blur + Hotbar Pop-Forward During Drag-----------------------------------------------(DONE)
 Top Bar Microcontroller Button Icon changed to Folder----------------------------------------------(DONE)
 Top Bar Home Button (next to Settings) - Return to landing page without refresh--------------------(DONE)
@@ -33,15 +53,20 @@ Color-coded Skins - Let users customize gate colors for visual organization
 Shaped gates - The gates should be shaped according to the gate 
 
 🔧 Functionality
-Composite Components (Sub-circuits) - Allow grouping gates into reusable custom blocks
-Copy/Paste - Ctrl+C/V support for duplicating selected gates with their connections
-Component Search - Quick search bar in the TAB menu for finding gates by name
-Clock/Pulse Generator - A timer-based input that oscillates automatically
+Composite Components (Sub-circuits) - Allow grouping gates into reusable custom blocks----------(DONE)
+  (true nested instances: Ctrl+G group / Ctrl+Shift+G ungroup, per-instance state, nestable,
+   definitions saved with the circuit. TODO: expose blocks in the TAB menu so instances can be
+   placed without copy/paste; merge ports that share a source so a half adder shows 2 inputs not 4)
+Copy/Paste - Ctrl+C/V support for duplicating selected gates with their connections-------------(DONE)
+  (also Ctrl+X cut, Ctrl+D duplicate; pastes at the cursor; internal wires preserved)
+Undo/Redo Keyboard Shortcuts - Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z (were toolbar-only)--------------(DONE)
+Component Search - Quick search bar in the TAB menu for finding gates by name-------------------(DONE)
+Clock/Pulse Generator - A timer-based input that oscillates automatically----------------------(DONE)
 Multi-bit Bus Wires - Support for bundled connections (e.g., 8-bit data buses)
-Breakpoints/Stepping - Pause simulation and step through logic changes
+Breakpoints/Stepping - Pause simulation and step through logic changes---------(PARTIAL - run/pause/step done; conditional breakpoints not started)
 
 📁 Project Management
-Auto-save/Recovery - Periodically save to localStorage (Planned)
+Auto-save/Recovery - Periodically save to localStorage (Planned - unsaved-changes warning shipped, auto-save still pending)
 Export as Image/SVG - Download circuit as a shareable image (Planned)
 Circuit Templates - Pre-built example circuits (Planned)
 Cloud Storage - Required for circuit persistence (Supabase)-----------------------------(DONE)
@@ -54,7 +79,7 @@ Microcontroller Details Panel - Side panel in the load menu to view circuit meta
 More Keyboard Shortcuts - Quick keys for common gates (e.g., A for AND, O for OR)
 Grid Snapping Toggle - Option to snap gates to grid or free-place------------------------------(DONE)
 Connection Routing - Manual waypoints for cleaner wire paths
-Accessibility Labels - Screen reader support for educational use
+Accessibility Labels - Screen reader support for educational use (PARTIAL - reduced-motion support and an aria-label on the new Components button are in; most top-bar icon buttons still lack labels)
 
 🎮 Learning & Gamification
 Truth Table View - Generate and display truth tables for selected circuits---------------------(DONE FOR GATES)

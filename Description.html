@@ -22,6 +22,27 @@
 <p>The <strong>Logic Gate Circuit Builder</strong> is a web-based visual simulation tool inspired by the Stormworks microcontroller editor. It allows users to design, build, and simulate complex logic circuits directly in the browser using a modern, drag-and-drop interface. The application supports both boolean logic and numerical (floating-point) signal processing. Users can securely manage their designs using <strong>Google OAuth</strong> or <strong>Email/Password registration</strong> with custom alphanumeric usernames.</p>
 
 <div class="note">
+    <strong>August 7, 2026 Update Snapshot:</strong>
+    <ul>
+        <li><strong>AI Assistant:</strong> Describe a circuit in plain language and the assistant builds it, or ask what the board in front of you does. It verifies its own work by running a truth table against the simulator before reporting back. Sign-in gated, with the API key held server-side.</li>
+        <li><strong>Simulation Tick &amp; Clock:</strong> The simulator now runs on a real fixed-rate tick with Run/Pause and Step controls, and a new free-running Clock component. This also fixed Timer, Delay and Debounce, which were advancing up to 20 times too fast.</li>
+        <li><strong>Block UI:</strong> Composite blocks are now created and edited through a right-click context menu and a dialog, rather than keyboard shortcuts alone. The dialog covers name, description, a preview of the pins the block will have, and editable pin names.</li>
+        <li><strong>TAB Menu Polish:</strong> Hovering a component tile shows its name and a one-line summary with an animated tooltip. The "Stock" chip was removed, and all component icons were unified onto a single light tile theme matching the node body colour &mdash; so a menu tile previews how the component will look once placed. Previously math, input/output and logic icons each looked different.</li>
+        <li><strong>Composite Components:</strong> Group a selection into a named, reusable block (<code>Ctrl/Cmd + G</code>) and expand it back to see inside (<code>Ctrl/Cmd + Shift + G</code>). These are true nested sub-circuits &mdash; each instance keeps its own internal state, blocks can contain other blocks, and definitions are saved with the circuit.</li>
+        <li><strong>Copy / Cut / Paste / Duplicate:</strong> Reuse parts of a circuit with their internal wiring intact (<code>Ctrl/Cmd + C / X / V / D</code>). Paste lands under the cursor, carries node configuration and Switch state, and selects the result so it can be dragged immediately. Wires to components outside the selection are deliberately not copied.</li>
+        <li><strong>Undo/Redo Shortcuts:</strong> <code>Ctrl/Cmd + Z</code> and <code>Ctrl/Cmd + Y</code> now work. They were documented but had never been bound &mdash; undo and redo were toolbar-only.</li>
+        <li><strong>UI Overhaul:</strong> The landing page now shares the simulator's design system &mdash; dark Stormworks palette, a top bar mirroring the simulator's, chunky inset-shadow buttons, and matching dropdown/modal panels. Previously it used a bright blue gradient that clashed with the dark editor chrome.</li>
+        <li><strong>Components Button:</strong> The component menu can now be opened from a top-bar button instead of only the <code>TAB</code> key, and <code>Escape</code> closes it.</li>
+        <li><strong>Motion Pass:</strong> Shared easing and duration tokens, a staggered component-menu entrance, springy control feedback, node drop-in, and panel entrance animations &mdash; with full <code>prefers-reduced-motion</code> support.</li>
+        <li><strong>Fixed:</strong> The minimap no longer goes blank when a component is placed. Node positions were never recorded on the internal data model at creation, so the map's world bounds evaluated to <code>NaN</code> and nothing was drawn &mdash; including the viewport indicator &mdash; until a node happened to be dragged.</li>
+        <li>Minimap now renders at device pixel ratio for crisp output on high-density displays, frames the viewport alongside the nodes so the indicator is always visible, and corrects a small click-to-pan offset caused by the canvas border.</li>
+        <li><strong>Settings now persist</strong> across reloads (zoom sensitivity, pan sensitivity, snap to grid, dark mode), with the theme applied before first paint to avoid a flash.</li>
+        <li><strong>Unsaved changes warning</strong> added, so a refresh can no longer silently discard a circuit.</li>
+        <li>Fixed four double-encoded characters that rendered as garbled text (<code>&radic;</code>, &#127881;, &#127919;, <code>&copy;</code>).</li>
+    </ul>
+</div>
+
+<div class="note">
     <strong>March 22, 2026 Update Snapshot:</strong>
     <ul>
         <li>Added a dedicated <strong>Account Dashboard</strong> page for username, password, avatar URL, and delete-account actions.</li>
@@ -95,8 +116,10 @@
 <p>The interface is designed for clarity and ease of use, featuring a "blueprint" aesthetic.</p>
 <ul>
     <li><strong>Theme:</strong> Brighter blue grid background with contrasting white components.</li>
-    <li><strong>Dark Mode:</strong> Optional dark grayish-blue background (<code>#2c3e50</code>) for reduced eye strain, toggleable via settings.</li>
-    <li><strong>Simulator UI Refresh (March 2026):</strong> The in-simulator top bar, TAB menu, quick-access bar, microcontroller menu, and sidebar/modal surfaces were restyled to better match Stormworks references. Landing-page visuals were intentionally left unchanged.</li>
+    <li><strong>Dark Mode:</strong> Optional dark grayish-blue background (<code>#2c3e50</code>) for reduced eye strain, toggleable via settings. The preference is remembered between sessions and applied before first paint, so there is no flash of the light theme on load.</li>
+    <li><strong>Simulator UI Refresh (March 2026):</strong> The in-simulator top bar, TAB menu, quick-access bar, microcontroller menu, and sidebar/modal surfaces were restyled to better match Stormworks references.</li>
+    <li><strong>Unified Theme (August 2026):</strong> The landing page was brought onto the same design tokens as the simulator &mdash; dark panel palette, matching top bar, and chunky inset-shadow buttons &mdash; replacing the bright blue gradient it previously used. The Minecraft "CRAFT" wordmark was kept as product identity.</li>
+    <li><strong>Motion:</strong> A shared set of easing and duration tokens drives menu, panel, node, and control animations, so timing feels consistent across the app. Honours the OS "reduce motion" setting.</li>
     <li><strong>Visuals:</strong>
         <ul>
             <li><strong>SVG rendering</strong> for crisp icons and smooth Bezier curve wires.</li>
@@ -120,6 +143,8 @@
         </ul>
     </li>
     <li><strong>Selection:</strong> Box selection (drag background) and multi-select (Shift+Click). Move multiple nodes at once.</li>
+    <li><strong>Composite Blocks:</strong> Group a selection into a reusable block (<code>Ctrl/Cmd + G</code>), or expand one back into its parts (<code>Ctrl/Cmd + Shift + G</code>). The block's input and output pins are derived from the connections the selection needed: an input for every inner pin with no internal driver, an output for every inner pin that feeds the outside or nothing at all. Each instance simulates its own copy of the inner circuit, so two instances of a counter block count independently, and blocks may be nested. Input controls (Switch, Lever) cannot live inside a block, since a block has no way to expose an interactive control.</li>
+    <li><strong>Clipboard:</strong> Copy (<code>Ctrl/Cmd + C</code>), cut (<code>Ctrl/Cmd + X</code>), paste (<code>Ctrl/Cmd + V</code>), and duplicate (<code>Ctrl/Cmd + D</code>) a selection. Wiring between selected components is preserved; wiring to components outside the selection is not carried, since it has no counterpart in the copy. Paste lands at the cursor and respects Snap to Grid.</li>
     <li><strong>Delete Mode:</strong> Dedicated mode (top-bar delete-mode button or Delete key) to click-delete nodes and wires.</li>
     <li><strong>Deprecated Trashbin Removal:</strong> The old bottom-right drag-to-trash UI was removed.</li>
 </ul>
@@ -134,16 +159,24 @@
 <h3>Navigation</h3>
 <ul>
     <li><strong>Infinite Canvas:</strong> Pan (Middle Mouse or Two-finger scroll) and Zoom (Scroll wheel or Pinch) freely.</li>
-    <li><strong>Minimap:</strong> A real-time navigation aid in the top-right showing the entire circuit layout. Click to jump to location.</li>
+    <li><strong>Minimap:</strong> A real-time navigation aid in the top-right showing the entire circuit layout. Click to jump to location. Scales to frame both the circuit and the current viewport, and renders at device pixel ratio for crisp output on high-density displays.</li>
 </ul>
 
 <h3>Menus & Shortcuts</h3>
 <ul>
-    <li><strong>Component Menu (TAB):</strong> Full-screen overlay with search functionality and detailed descriptions/truth tables. While open, simulator UI layers blur; the quick-access bar sits behind and blurs, then pops forward/unblurs while dragging components to assign slots.</li>
+    <li><strong>Component Menu:</strong> Full-screen overlay with search functionality and detailed descriptions/truth tables. Opened from the <strong>top-bar Components button</strong> or the <code>TAB</code> key, and closed with <code>TAB</code> or <code>Escape</code>. Tiles cascade in on a short stagger, share a single unified icon theme (light tile matching the node body, category shown by ring colour), and reveal an animated tooltip with the component's name and a one-line summary on hover.</li>
+    <li><strong>Right-Click Context Menu:</strong> Group/ungroup blocks, open block details, and copy/cut/duplicate/delete from the canvas; paste and select-all on empty space. Shows keyboard equivalents alongside each action. While open, simulator UI layers blur; the quick-access bar sits behind and blurs, then pops forward/unblurs while dragging components to assign slots.</li>
     <li><strong>Quick Access Bar:</strong> 10 slots (Keys 1-0) for frequently used components. Drag from menu to assign.</li>
     <li><strong>Microcontroller Management Menu:</strong> A high-density submenu inspired by Stormworks for managing cloud-saved circuits. Includes a visual grid (now supporting custom drawn thumbnails), a live search, a dedicated <strong>Save Circuit Modal</strong> with a drawing canvas for thumbnails, and a sliding right-hand <strong>Details Panel</strong> for viewing circuit descriptions and metadata before loading. The top-bar menu button now uses a folder icon.</li>
     <li><strong>Home Button:</strong> Top-bar Home control beside Settings returns users to landing page through the shutter transition without page reload.</li>
     <li><strong>Undo/Redo:</strong> Full history support for all actions.</li>
+</ul>
+
+<h3>Settings &amp; Session Safety</h3>
+<ul>
+    <li><strong>Settings Modal:</strong> Gear icon in the top bar exposes Zoom Sensitivity, Pan Sensitivity, Snap to Grid, and Dark Mode.</li>
+    <li><strong>Persistence:</strong> All four settings are stored in browser localStorage and restored on load, including slider positions and toggle labels.</li>
+    <li><strong>Unsaved Changes Warning:</strong> Refreshing or closing the tab with unsaved work on the board prompts for confirmation. The prompt is suppressed on an empty board and after a save, load, or New Circuit. This is a warning only &mdash; periodic auto-save and recovery remain planned.</li>
 </ul>
 
 <h3>Tutorial</h3>

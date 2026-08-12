@@ -6,7 +6,27 @@ A web-based visual circuit designer inspired by Stormworks microcontroller edito
 This project allows users to design and simulate logic circuits directly in the browser. It features a drag-and-drop interface, real-time logic simulation, and a user experience modeled after the Stormworks game editor.
 
 ## Features implemented
-- **Account Dashboard (New):** Added `account.html` + `scripts/account.js` for profile/security management.
+- **AI Assistant (New):** Agentic framework for building/analysing/correcting circuits. The loop runs client-side (the circuit lives in the browser and tools mutate it directly, so no state ships anywhere and no serverless timeout applies); `api/agent.js` is a stateless proxy that verifies the Supabase session and injects the provider key. Providers sit behind an adapter (Gemini, OpenRouter, Grok) — switching is an env var. The canvas is passed as JSON from `saveState()`, not screenshots. The model never picks coordinates; `layoutCircuit()` assigns positions by topological depth. `run_truth_table` lets the agent verify its own work against the deterministic simulator, which is what makes the build → test → fix loop possible.
+- **Simulation Tick (New):** Fixed-rate 20 ticks/sec via rAF with a catch-up cap, plus Run/Pause and Step. Added a Clock component. Fixed `Timer`/`Delay`/`Debounce` advancing once per *settle pass* (up to 20x too fast) — time-based parts now advance at most once per tick, and event-driven refreshes pass no tick id so no simulated time elapses.
+- **TAB Menu Polish (New):** Hover tooltips on component tiles (name plus a one-line summary), animated with the shared motion tokens. Summaries are derived from each component's existing `desc` by stripping markup and truth tables and taking the first sentence, so component copy keeps a single source of truth. The "Stock" chip was removed, and all tile icons were unified onto one tile treatment — previously math, I/O and logic icons each had a different look. Tiles use the same light body colour as a placed node (`#e9eaec`) with dark symbols, so a tile previews the real component; hard-coded `stroke="white"` attributes in the markup are overridden to `currentColor`. Category is carried by ring colour alone, re-tuned for the light tile (all combinations clear WCAG AA for graphical elements). Inline `#2ecc71` styles on the numeric components were replaced with a `num-icon` class, since inline styles beat the stylesheet and left them unreadable.
+- **Composite Block UI (New):** Right-click context menu (group, ungroup, block details, copy/cut/duplicate/delete; paste and select-all on empty canvas) and a block create/edit dialog with name, description, a port-count preview, and editable pin names. `Ctrl/Cmd + G` routes through the same dialog. Pin names live on the definition, so editing updates every instance.
+- **Composite Components (New):** Group a selection into a reusable block (`Ctrl/Cmd + G`) and expand it again (`Ctrl/Cmd + Shift + G`). These are true nested sub-circuits, not visual grouping:
+  - An instance's node type is `Composite:<definitionId>`, registered into `componentDefinitions` with derived pin counts, so node creation, wiring, pin rendering, the save format and copy/paste need no special cases.
+  - The per-node gate `switch` was extracted from the `updateSimulation` loop into a DOM-free `evaluateGate(n, s, depth)`, shared by the top-level board and by inner circuits (whose nodes have no DOM).
+  - `instantiateInner()` gives each instance private inner nodes and memory, so two instances of the same block do not share flip-flop or counter state.
+  - Blocks may nest; depth is capped at 8 so a self-containing definition fails safe.
+  - Input ports are inner input pins with no internal driver; output ports are inner output pins that drive something outside or nothing at all. Ports are ordered by node position.
+  - Definitions are serialised with the circuit (undo history and cloud saves). Circuits saved before blocks existed have no `composites` key and load unchanged.
+  - Switches and Levers are rejected inside a block, since a block cannot expose an interactive control.
+- **Clipboard (New):** `Ctrl/Cmd + C / X / V / D` for copy, cut, paste, and duplicate of the current selection. Wires are carried only when both endpoints are inside the selection; an old-id → new-id map rebuilds the internal wiring so copies connect to copies rather than back to the originals. Node config and Switch state are preserved, paste lands under the cursor, and the result is selected on arrival. The clipboard is in-memory — the system clipboard is left alone so text copy still works inside the app.
+- **Undo/Redo Shortcuts (New):** `Ctrl/Cmd + Z`, `Ctrl/Cmd + Y`, and `Ctrl/Cmd + Shift + Z` are now bound. They had been documented but never wired; undo/redo were toolbar-only.
+- **Unified Stormworks Theme (New):** The landing page now uses the same `--sw-*` design tokens as the simulator — dark panel palette, a top bar mirroring `#top-bar`, chunky inset-shadow buttons, and matching dropdown/modal surfaces. Added as an appended override block so the original landing rules remain intact.
+- **Top Bar Component Menu Button (New):** A Components button in the top bar opens the TAB menu without needing the keyboard shortcut. `Escape` now also closes the menu (previously the focused search input swallowed it, leaving `TAB` as the only keyboard exit).
+- **Motion Pass (New):** Shared easing/duration tokens, a staggered component-menu entrance, springy control feedback, node drop-in, panel entrances, and a `prefers-reduced-motion` block. Implemented in CSS to preserve the zero-dependency architecture.
+- **Persistent Settings (New):** Zoom Sensitivity, Pan Sensitivity, Snap to Grid, and Dark Mode are stored in the `nodecraft-settings` localStorage key and restored on load. Dark Mode is applied by a pre-paint inline script so the light theme never flashes first.
+- **Unsaved Changes Warning (New):** Leaving or refreshing with an unsaved, non-empty circuit prompts for confirmation. Cleared on initial load, New Circuit, cloud load, and successful cloud save. (Warning only — periodic auto-save is still on the roadmap.)
+- **Minimap Rendering Fix (New):** The minimap previously went blank as soon as a component was placed, because node positions were never written to the data model at creation. See `CATALOG.md` (August 7, 2026) for the full breakdown.
+- **Account Dashboard:** Added `account.html` + `scripts/account.js` for profile/security management.
   - Update username (stored in `accounts` and reflected in dropdown).
   - Update password for email/password sign-ins.
   - Update avatar URL (`user_metadata.avatar_url`) with validation.
@@ -68,7 +88,7 @@ This project allows users to design and simulate logic circuits directly in the 
     - Skip button available at any stage
     - Tutorial resets on every page refresh (for demo purposes)
   - **Quick Access Bar:** **Expanded to 10 slots (1-0 for keyboard shortcuts)** for frequent components (Drag from menu to assign), with a dedicated **Menu Button**.
-  - **Component Menu:** Full-screen overlay (TAB) with descriptions, now features a **smooth animated opening/closing** without darkening the background. Logic section includes utility gates (Threshold, Numerical Switchbox).
+  - **Component Menu:** Full-screen overlay with descriptions, opened either by the **top-bar Components button** or the `TAB` key, and closed by `TAB` or `Escape`. Features a smooth animated opening/closing with a staggered tile cascade, without darkening the background. Logic section includes utility gates (Threshold, Numerical Switchbox).
   - **TAB Focus Layering:** Opening TAB now blurs simulator UI layers. The Quick Access Bar moves behind and blurs by default, then pops forward/unblurs while dragging a component for slot assignment.
   - **Simulator UI Refresh (Stormworks pass):** In-simulator top bar, menu windows, quick bar, and microcontroller manager were visually tuned to match current reference screenshots while preserving functionality.
   - **Top Bar Icon Update:** The microcontroller management button in the top bar now uses a folder icon.
@@ -79,16 +99,21 @@ This project allows users to design and simulate logic circuits directly in the 
   - **Editing:** Deletion is handled via Delete Mode and keyboard selection deletion (Delete/Backspace). The deprecated bottom-right trashbin drag-delete UI has been removed. **Dragging a wire between already connected pins will now toggle (delete) the connection.**
   - **New Circuit Button:** A "+" button in the top menu to clear the board and start fresh (with confirmation dialog).
   - Cloud Sync: Save and load circuits via Supabase cloud storage.
-  - Undo/Redo: Full history support for circuit changes.
+  - Undo/Redo: Full history support for circuit changes, via the toolbar buttons or `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y`.
+  - **Clipboard:** Copy, cut, paste, and duplicate a selection with its internal wiring (`Ctrl/Cmd + C / X / V / D`). Paste lands at the cursor and respects Snap to Grid.
   - **Improved Drag & Drop:** Enhanced dragging stability for nodes and wiring, preventing "sticky" behavior and ensuring reliable connections.
   - **Settings:** Gear icon in the top-right opens a settings modal to configure:
     - **Zoom Sensitivity**
     - **Pan Sensitivity**
+    - **Snap to Grid**
     - **Dark Mode:** Sliding toggle switch (consistent with in-game Switch component) to change the background to a dark grayish-blue (`#2c3e50`) for reduced eye strain.
-  - **Delete Mode:** Press Delete key or click the top-bar delete-mode button to enter delete mode. Click on any node or wire to delete it. Features 45Â° rotated red X cursor, pulsing red hover effect on gates.
-  - **Minimap:** A visual navigation aid in the top-right corner showing the entire circuit layout and current viewport. Clicking on the minimap centers the view to that location.
+    - All four settings persist across reloads via localStorage.
+  - **Delete Mode:** Press Delete key or click the top-bar delete-mode button to enter delete mode. Click on any node or wire to delete it. Features 45° rotated red X cursor, pulsing red hover effect on gates.
+  - **Minimap:** A visual navigation aid in the top-right corner showing the entire circuit layout and current viewport. Clicking on the minimap centers the view to that location. Renders at `devicePixelRatio` for crisp output on high-density displays, and frames the viewport together with the nodes so the indicator stays visible and usefully scaled at any circuit size.
   - **Signal Probes:** Hover over any wire to see its current value. Works with both boolean (ON/OFF) and numerical values. Math gate outputs now show actual computed values.
   - **Bug Fixes:**
+    - **Minimap Blank After Placement:** Node positions were never written to the `nodes` data model at creation, so world bounds evaluated to `NaN` and the minimap drew nothing — including the viewport indicator — until a node was dragged. Positions are now set on creation, bounds skip non-finite entries, and click-to-pan accounts for the canvas border.
+    - **Text Encoding:** Fixed four double-encoded UTF-8 characters that rendered as mojibake (`√` in the SQRT tile, the tutorial `🎉`/`🎯` icons, and the landing page `©`).
     - **Wire Visuals:** Fixed an issue where the wire connection line did not start from the correct position on the pin when dragging, now accounting for zoom and pin centering.
     - **Connection Type Safety:** Implemented strict type checking to prevent invalid connections between Boolean (Red) and Numerical (Green) pins.
     - **Hotkey Conflict:** Fixed an issue where hotkeys (0-9 for Quick Access, Delete/Backspace) would trigger while typing in input fields (like the Component Search or Value Config). Hotkeys are now disabled when an input is focused.
@@ -148,14 +173,14 @@ The codebase has been refactored from a monolithic structure into a clean ES Mod
 
 **Details:**
 - **`gateDefinitions.js`**: Contains all static component data, including `componentDefinitions`, SVG icons (`gateSVGs`, `ioSVGs`), and tooltip descriptions.
-- **`simulation.js`**: Encapsulates the `updateSimulation` logic and `getConnectionValue` helper. Operates as a pure function accepting the current state.
+- **`simulation.js`**: Encapsulates the `updateSimulation` logic and `getConnectionValue` helper. Operates as a pure function accepting the current state. Per-node evaluation lives in a DOM-free `evaluateGate()`, which is shared by the top-level board and by `evaluateComposite()` for the inside of composite blocks. The composite definition registry is injected from `script.js` via `setCompositeRegistry()`, so this module stays free of persistence and UI concerns.
 - **`tutorial.js`**: Encapsulates the entire tutorial state machine and DOM interaction logic. Communicates with the main app via callbacks and state getters.
 - **`minimap.js`**: Handles the rendering of the mini-map and view panning interactions.
 - **`wiring.js`**: Manages wire creation, SVG paths, and connection logic.
 - **`script.js`**: Entry point and main controller. Manages global state (`nodes`, `connections`), handles global DOM events (mouse, keyboard), and coordinates other modules.
 - **`index.html`**: Loads `script.js` as a module (`type="module"`).
 
-**Status:** âœ… Complete
+**Status:** ✅ Complete
 - Modular split finalized and tested.
 - Core functionality (simulation, placing, wiring) fully preserved.
 - Tutorial system working with modular state.

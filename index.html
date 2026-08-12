@@ -13,6 +13,18 @@
 </head>
 
 <body>
+    <script>
+        // Applied before the rest of the page paints so a saved dark theme
+        // doesn't flash the light theme first. Mirrored onto the settings
+        // toggle later by applyStoredSettings() in scripts/script.js.
+        try {
+            var storedSettings = JSON.parse(localStorage.getItem('nodecraft-settings'));
+            if (storedSettings && storedSettings.darkMode) {
+                document.body.classList.add('dark-mode');
+            }
+        } catch (e) { /* storage blocked or corrupt: keep the default theme */ }
+    </script>
+
     <div id="app">
         <!-- Top Navigation Bar -->
         <div id="top-bar">
@@ -24,6 +36,11 @@
             <button id="micro-menu-btn" class="top-btn" title="Microcontroller Management">
                 <svg viewBox="0 0 24 24" width="24" height="24">
                     <path fill="currentColor" d="M10 4l2 2h8c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6zm0 2H4v10h16V8h-8l-2-2z" />
+                </svg>
+            </button>
+            <button id="component-menu-btn" class="top-btn" title="Components (Tab)" aria-label="Open component menu">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm-11 11h7v7H3v-7zm11 0h7v7h-7v-7z" />
                 </svg>
             </button>
             <div class="top-divider" aria-hidden="true"></div>
@@ -40,6 +57,20 @@
                 </svg>
             </button>
             <div class="top-divider" aria-hidden="true"></div>
+            <button id="sim-toggle-btn" class="top-btn" title="Pause simulation" aria-label="Pause or resume simulation">
+                <svg class="sim-icon-pause" viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+                </svg>
+                <svg class="sim-icon-play" viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M8 5v14l11-7z" />
+                </svg>
+            </button>
+            <button id="sim-step-btn" class="top-btn" title="Step one tick" aria-label="Step simulation one tick">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M6 5v14l9-7-9-7zm11 0h2v14h-2V5z" />
+                </svg>
+            </button>
+            <div class="top-divider" aria-hidden="true"></div>
             <button id="delete-mode-btn" class="top-btn" title="Delete Mode (Del)">
                 <svg viewBox="0 0 24 24" width="24" height="24">
                     <path fill="currentColor"
@@ -47,6 +78,11 @@
                 </svg>
             </button>
             <div class="top-spacer" aria-hidden="true"></div>
+            <button id="agent-toggle-btn" class="top-btn" title="Ask the assistant" aria-label="Open the AI assistant">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12 2l2.09 5.26L19.5 8.4l-3.9 3.5.98 5.6L12 14.8l-4.58 2.7.98-5.6L4.5 8.4l5.41-1.14L12 2z" />
+                </svg>
+            </button>
             <button id="settings-btn" class="top-btn" title="Settings">
                 <svg viewBox="0 0 24 24" width="24" height="24">
                     <path fill="currentColor"
@@ -295,12 +331,12 @@
                                 <span>Switch</span>
                             </div>
                             <div class="menu-item" data-type="Lever" draggable="true">
-                                <div class="menu-icon input-icon" style="color: #2ecc71; border-color: #2ecc71;">LEV
+                                <div class="menu-icon input-icon num-icon">LEV
                                 </div>
                                 <span>Lever</span>
                             </div>
                             <div class="menu-item" data-type="Bar Graph" draggable="true">
-                                <div class="menu-icon output-icon" style="color: #2ecc71; border-color: #2ecc71;">BAR</div>
+                                <div class="menu-icon output-icon num-icon">BAR</div>
                                 <span>Bar Graph</span>
                             </div>
                             <div class="menu-item" data-type="Light" draggable="true">
@@ -308,7 +344,7 @@
                                 <span>Light</span>
                             </div>
                             <div class="menu-item" data-type="Dial" draggable="true">
-                                <div class="menu-icon output-icon" style="color: #2ecc71; border-color: #2ecc71;">0.00
+                                <div class="menu-icon output-icon num-icon">0.00
                                 </div>
                                 <span>Dial</span>
                             </div>
@@ -341,7 +377,7 @@
                                 <span>POW</span>
                             </div>
                             <div class="menu-item" data-type="SQRT" draggable="true">
-                                <div class="menu-icon math-icon">âˆš</div>
+                                <div class="menu-icon math-icon">√</div>
                                 <span>SQRT</span>
                             </div>
                             <div class="menu-item" data-type="ABS" draggable="true">
@@ -397,7 +433,7 @@
                         <div class="menu-section-title">Signal / Utility</div>
                         <div class="menu-grid">
                             <div class="menu-item" data-type="Constant" draggable="true">
-                                <div class="menu-icon math-icon" style="color: #2ecc71; border-color: #2ecc71;">C</div>
+                                <div class="menu-icon math-icon num-icon">C</div>
                                 <span>Constant</span>
                             </div>
                             <div class="menu-item" data-type="Delay" draggable="true">
@@ -408,6 +444,15 @@
                                     </svg>
                                 </div>
                                 <span>Delay</span>
+                            </div>
+                            <div class="menu-item" data-type="Clock" draggable="true">
+                                <div class="menu-icon">
+                                    <svg viewBox="0 0 50 50">
+                                        <path d="M 4 34 H 12 V 16 H 22 V 34 H 32 V 16 H 42 V 34 H 46" fill="none"
+                                            stroke="white" stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>CLOCK</span>
                             </div>
                             <div class="menu-item" data-type="Pulse" draggable="true">
                                 <div class="menu-icon">
@@ -480,10 +525,6 @@
                 <!-- Right Window -->
                 <div class="menu-right-window">
                     <div class="menu-right-header">
-                        <div class="menu-stock-btn">
-                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15zM5 15.91l6 3.38v-6.71L5 9.19v6.72zm14 0v-6.72l-6 3.39v6.71l6-3.38z"/></svg>
-                            Stock
-                        </div>
                         <div class="menu-tags">tags:</div>
                     </div>
                     
@@ -668,7 +709,7 @@
 
             <!-- Achievement popup -->
             <div id="tutorial-achievement" class="tutorial-achievement">
-                <div class="tutorial-achievement-icon">ðŸŽ‰</div>
+                <div class="tutorial-achievement-icon">🎉</div>
                 <div class="tutorial-achievement-title">Great Job!</div>
                 <div class="tutorial-achievement-subtitle">You placed your first gate!</div>
             </div>
@@ -702,7 +743,7 @@
                         </video>
                     </div>
                     <div id="tutorial-task" class="tutorial-task" style="display: none;">
-                        <span class="tutorial-task-icon">ðŸŽ¯</span>
+                        <span class="tutorial-task-icon">🎯</span>
                         <span class="tutorial-task-text" id="tutorial-task-text">Complete the task...</span>
                     </div>
                 </div>
@@ -834,7 +875,7 @@
             <button id="start-btn" class="landing-btn">Start Designing</button>
         </div>
         <div class="landing-footer">
-            <div class="footer-primary">Created by Amaan Chaudhry Â© 2025</div>
+            <div class="footer-primary">Created by Amaan Chaudhry © 2025</div>
             <div class="footer-secondary">Inspired by Stormworks</div>
         </div>
         <div class="landing-socials">
@@ -905,6 +946,57 @@
                         <p>Speed up your workflow with 1-0 Quick Access, Delete mode, and custom keybinds.</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right-click context menu (workspace and nodes) -->
+    <div id="context-menu" class="context-menu hidden" role="menu"></div>
+
+    <!-- Hover tooltip for TAB menu component tiles -->
+    <div id="menu-tooltip" class="menu-tooltip hidden" role="tooltip"></div>
+
+    <!-- AI assistant prompt bar -->
+    <div id="agent-bar" class="agent-bar">
+        <div class="agent-row">
+            <span class="agent-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path fill="currentColor" d="M12 2l2.09 5.26L19.5 8.4l-3.9 3.5.98 5.6L12 14.8l-4.58 2.7.98-5.6L4.5 8.4l5.41-1.14L12 2z" />
+                </svg>
+            </span>
+            <input type="text" id="agent-input" autocomplete="off" spellcheck="false"
+                placeholder="Build a half adder — or ask what this circuit does">
+            <button id="agent-submit" class="agent-submit">Ask</button>
+        </div>
+        <div id="agent-output" class="agent-output"></div>
+    </div>
+
+    <!-- Create / edit a composite block -->
+    <div id="block-modal" class="modal hidden">
+        <div class="modal-content block-modal-content">
+            <div class="modal-header">
+                <h3 id="block-modal-title">Create Block</h3>
+                <button id="block-modal-close" class="close-btn">&times;</button>
+            </div>
+            <div class="block-modal-body">
+                <div class="block-field">
+                    <label for="block-name">Name</label>
+                    <input type="text" id="block-name" placeholder="Half Adder" maxlength="40" autocomplete="off">
+                </div>
+                <div class="block-field">
+                    <label for="block-desc">Description</label>
+                    <textarea id="block-desc" placeholder="What does this block do? Shown when the block is selected in the component menu."></textarea>
+                </div>
+                <div id="block-ports-summary" class="block-ports-summary"></div>
+                <div class="block-field">
+                    <label>Pin Names</label>
+                    <p class="block-hint">Rename the block's pins so its purpose is clear when wiring. Shown on pin hover and in the component menu.</p>
+                    <div id="block-ports-editor" class="block-ports-editor"></div>
+                </div>
+            </div>
+            <div class="block-modal-footer">
+                <button id="block-cancel" class="micro-action-btn secondary">Cancel</button>
+                <button id="block-confirm" class="micro-action-btn">Create Block</button>
             </div>
         </div>
     </div>

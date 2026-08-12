@@ -4,6 +4,340 @@ This file documents changes made to the Circuit Builder project.
 
 ---
 
+## August 7, 2026
+
+### Assistant: Visible Building, and Open Access
+
+**Files Modified:** `scripts/agentTools.js`, `scripts/agent.js`, `api/agent.js`, `css/style.css`, `tools/dev-server.mjs`
+
+**Watching the agent work.** Batching tool calls fixed the rate limits but made a whole circuit appear in a single frame, which reads as a glitch rather than as work. The fix paces the *execution* rather than the requests — components appear one at a time (~150ms apart), wires draw on from source to destination using the path's own length, the board re-lays-out after each placement so parts settle into their columns, and the simulation updates per wire so signals visibly propagate as the circuit closes. A brief amber pulse marks whatever was just touched.
+
+This is local pacing, so **a build is still four model turns** — the delays cost no API calls. Per-item delay shrinks as the batch grows, capped so the whole sequence stays under ~2.6s: a six-gate circuit feels deliberate, a fifty-gate one is not a slideshow. Disabled entirely under `prefers-reduced-motion`. Measured cost: ~1.6s on a build.
+
+**Turn timeout.** A hanging provider request previously left the UI on "Thinking…" indefinitely. Each turn now aborts after 90s with a message naming the likely cause (free-tier capacity for large models queues). Discovered when `nemotron-3-ultra-550b` stopped responding entirely — three probes at 30s, 45s and 60s returned nothing.
+
+**Sign-in gate opened.** The assistant no longer requires an account. The gate is intact rather than removed: `AGENT_REQUIRE_AUTH=1` restores it, and every request still resolves the caller against Supabase even while open, so a signed-in user is *identified* but not *required*. Flipping the flag later enables a path that has been running all along rather than switching on untested code.
+
+Rate limiting was quietly broken by that change — it keyed on `user.id`, which does not exist for an anonymous caller, so everyone would have shared one bucket. It now keys on user id when signed in and forwarded IP otherwise, with separate ceilings: 40 turns/minute signed in, 12 anonymous (a build is ~4). `AGENT_ALLOW_ANON` was removed, superseded by this.
+
+**Accepted risk:** while the gate is open the endpoint spends the provider key for anyone who finds it. `x-forwarded-for` is client-settable, so the limit is a cost guard against runaway loops and casual abuse, not a security control. The mitigation is the flag, not a cleverer IP heuristic.
+
+**Provider note:** Gemini `gemini-flash-latest` completes a build in ~13s versus ~39s on OpenRouter's `nemotron-3-ultra-550b:free`, and proved more reliably available. Gemini is now primary, OpenRouter the fallback.
+
+### AI Assistant (Agentic Framework)
+Added a built-in assistant that can create, analyse and correct circuits from a single prompt.
+
+**Files Added:**
+- `api/agent.js` - Serverless proxy (Vercel function).
+- `scripts/agentTools.js` - Tool definitions, executors, auto-layout, truth-table sweep.
+- `scripts/agent.js` - The agent loop and prompt-bar UI.
+- `tools/dev-server.mjs` - Local server that runs the real handler, since a static server cannot.
+
+**Files Modified:**
+- `index.html` - Prompt bar and top-bar toggle. `scripts/script.js` - Agent API wiring. `css/style.css` - Prompt bar styling. `package.json` - `"type": "module"` for the Vercel function.
+
+**Architecture:**
+- **The loop runs in the browser, not the server.** The circuit lives in the tab and the tools mutate it directly, so a client-side loop means no state is shipped anywhere and no serverless timeout applies — each model turn is its own short request. The function is a stateless proxy: verify session, inject key, forward.
+- **The key never reaches the client.** NodeCraft is a static site, so an API key in the browser is readable by anyone. It lives only in the deployment's environment.
+- **Sign-in gated.** The proxy verifies the caller's token against Supabase's `/auth/v1/user` rather than checking a JWT signature — no secret to hold, and revocation takes effect immediately.
+- **Providers sit behind an adapter.** Gemini, OpenRouter and Grok are implemented; each converts a neutral request shape to its own wire format. Switching provider is an environment variable, not a code change.
+- **The canvas is passed as structured JSON, not screenshots.** `saveState()` already produces exactly the shape a model needs, so vision is unnecessary — cheaper, and far more reliable for a 30-node board.
+
+**Tools:** `get_circuit`, `list_component_types`, `add_components`, `connect`, `delete_component`, `configure_component`, `run_truth_table`.
+
+**Two decisions that carry the design:**
+- **The model never picks coordinates.** Spatial layout is the weakest part of LLM output and hand-placed x/y produces overlapping boards. It emits a graph; `layoutCircuit()` assigns positions by topological depth. Verified: a half adder lands in three clean columns with no overlaps.
+- **`run_truth_table` is the point.** Because NodeCraft has a deterministic simulator, the agent can verify its own work — the loop is build → test → fix. Without it this is a plausible-circuit generator. The system prompt requires comparing the table against the request before reporting success.
+
+**Component types are injected into the system prompt** rather than described, so the model cannot invent a part that does not exist.
+
+**Bugs found and fixed during implementation:**
+- **Gemini 3.x `thoughtSignature`.** Gemini attaches an opaque signature to each function-call part and rejects the *next* turn with a 400 unless it is echoed back unchanged. It only appears on turn 2+, so every single-call test passed and all seven tool schemas validated — the first multi-turn request was the first thing to hit it. The adapter now round-trips it.
+- **Retired model IDs.** `gemini-2.0-flash` no longer exists and the entire 2.5 line returns *"no longer available to new users"* for new keys. Defaulted to the `gemini-flash-latest` alias so a future retirement does not break the integration the same way.
+- **Rate limits from unbatched tools.** The agent originally placed one component per turn, making a six-gate circuit ~19 requests and exhausting free-tier per-minute quota. `add_components` and `connect` now take lists; a build is 4 turns. Both report per-item results so one bad entry does not fail the batch.
+- **No backoff.** A mid-run 429 killed the run. The proxy now parses the provider's own `retryDelay` and the client waits it out, counting down in the status line.
+
+**Model selection is empirical, not assumed.** Free models were tested against the real tool schemas with a simulated loop: `openai/gpt-oss-20b:free` reliably places components and then abandons the task without wiring or verifying; `nvidia/nemotron-3-ultra-550b-a55b:free` completes the full sequence. That harness is what separated "model cannot follow through" from "the wiring is broken".
+
+**Verification:** From the prompt *"Build a half adder: switches A and B, XOR for Sum and AND for Carry, each driving its own light. Verify it."* — 4 turns, 39 seconds, 6 components, 6 wires, and a correct truth table the agent measured rather than asserted.
+
+**Known limitations:**
+- The Supabase sign-in path is unverified; local development uses `AGENT_ALLOW_ANON`, which is ignored whenever `VERCEL` is set and so cannot be enabled in a deployment.
+- Free tiers are rate-limited per minute. Four turns per build keeps normal use inside the limit, but concurrent users will queue.
+- Sequential circuits (clocks, flip-flops) cannot be verified by a truth-table sweep; only combinational logic is checked automatically.
+
+### Simulation Tick, Clock Component, and Run/Pause
+The simulator previously only ran in response to user input, so nothing could oscillate on its own.
+
+**Files Modified:**
+- `scripts/simulation.js`, `scripts/script.js`, `scripts/gateDefinitions.js`, `index.html`, `css/style.css`
+
+**Changes:**
+- **Fixed-rate tick** at 20 ticks/second, driven by `requestAnimationFrame` with a time accumulator and a catch-up cap, so a backgrounded tab drops its time debt rather than replaying seconds at once.
+- **Clock component** — a free-running oscillator with a configurable half-period in ticks. No input required.
+- **Run/Pause and Step-one-tick** controls in the top bar; paused reads amber so the state is obvious.
+
+**Bug found: time-based components were advancing per settle pass.**
+`updateSimulation` settles combinational logic by re-evaluating every node up to 20 times per call, and `Timer`, `Delay` and `Debounce` advanced on *every pass* — up to 20× too fast. A tick alone would not have fixed this. Time-based components now advance at most once per node per tick, tracked by a tick id; omitting the id marks an event-driven refresh where no simulated time passes, so toggling a switch no longer nudges every Timer forward. Verified: a Timer reads exactly `10.00` after 10 steps and is unchanged by a non-tick update.
+
+**Bug introduced and fixed:** the Clock first stored its level in `memory.state`, which collides with the flip-flop convention — `updateSimulation` snapshots that key at the start of a pass and writes it back at the end, reverting each flip one tick later. Moved to `memory.clockHigh`.
+
+### TAB Menu Polish
+Three changes to the component menu.
+
+**Files Modified:**
+- `index.html` - Added the hover tooltip element, removed the Stock chip, replaced inline icon colours with a `num-icon` class.
+- `scripts/script.js` - Tooltip logic and short-description derivation.
+- `css/style.css` - Tooltip styling/animation and the unified icon theme.
+
+**Changes:**
+- **Hover tooltips:** Hovering a component tile shows its name and a one-line summary, so the library can be scanned without clicking each tile in turn. The tile grid is icon-only, which previously made identification slow.
+- **Derived summaries:** Rather than adding a second description field to all 48 components, the tooltip reduces the existing `desc` to its first plain-text sentence — truth tables and markup are stripped, and the result is capped at 120 characters. Results are cached per type. This keeps a single source of truth for component copy.
+- **Tooltip animation:** Fades and rises on a quintic curve using the shared motion tokens, and follows the cursor. Hidden on drag start and on menu close so it cannot be left stranded.
+- **Removed the "Stock" chip** from the right-hand panel header.
+- **Unified icon theme:** The grid previously showed three unrelated treatments side by side — math icons had a filled tile, input/output icons had hard coloured borders, and logic/memory/signal icons were bare SVG on no background. All tiles now share one 36px rounded tile with the same background and inset ring; category is carried by ring colour alone, with a blue ring on hover.
+- **Light tiles:** The shared tile uses the same light body colour as a placed node (`#e9eaec`) with dark symbols, so a menu tile previews how the component will actually look on the canvas. The 18 SVG paths carrying a hard-coded `stroke="white"` in the markup are overridden to `currentColor` so they read against it.
+- **Accent colours re-tuned for the light tile.** The category colours had been chosen against a dark background and washed out once the tile went light:
+
+| Category | Colour | Contrast on tile |
+|---|---|---|
+| Logic / Math | `#12181d` | 14.9:1 |
+| Inputs | `#b8281a` | 5.2:1 |
+| Outputs | `#9a6206` | 4.2:1 |
+| Numeric | `#157347` | 4.9:1 |
+
+  All clear WCAG AA for graphical elements (3:1); all but Outputs clear AA text (4.5:1), which is acceptable for an icon stroke and keeps the amber reading as amber rather than brown.
+- **Inline styles moved to a class.** Lever, Bar Graph, Dial and Constant carried `style="color: #2ecc71"` directly in the markup, which beat the stylesheet and left them near-invisible on the light tile. They now use a `num-icon` class instead, keeping the "numerical signal" green semantic at a darker value. Preferred over an `!important` override so the cascade stays predictable.
+
+### Composite Block UI (Context Menu, Dialog, Pin Names)
+Replaced the keyboard-and-`prompt()`-only workflow for composite blocks with a proper interface.
+
+**Files Modified:**
+- `index.html` - Context menu container and the block create/edit dialog.
+- `scripts/script.js` - Menu building, dialog handling, port label editing.
+- `css/style.css` - Context menu, dialog, and pin-name editor styling.
+
+**Features:**
+- **Right-click context menu.** On a node: Group into Block (showing the selection count, disabled below two), Copy, Cut, Duplicate, Delete. On a composite instance it additionally offers Block Details and Ungroup Block. On empty canvas: Paste (disabled when the clipboard is empty) and Select All. Items show their keyboard equivalents.
+- **Block dialog** with name and description fields, replacing the previous `prompt()`. `Ctrl/Cmd + G` routes through the same dialog so both entry points behave identically.
+- **Port preview.** The dialog reports what the selection will become (`2 components | 4 inputs | 2 outputs`) *before* committing, which surfaces the per-pin port behaviour at the moment it can still be acted on.
+- **Editable pin names.** One field per pin, pre-filled with the derived label, in both create and edit modes. Blank fields fall back to the derived label so no pin is ever nameless. Names appear on pin hover and in the component menu description. Because names live on the definition, editing them updates every instance at once.
+- Descriptions and a `createdAt` timestamp are stored on definitions now, so a future "save blocks as Microcontrollers" menu needs a table and browse UI rather than a data migration.
+
+**Behaviour notes:**
+- Right-clicking a node outside the current selection retargets the selection to it first, matching file-manager convention.
+- The context menu stays out of the way during placement mode (which already uses right-click to cancel) and Delete Mode, and dismisses on outside click, Escape, or window blur.
+
+**Bugs Found and Fixed During Implementation:**
+- **Duplicate `escapeHtml` broke the entire app.** A second `function escapeHtml` was added while one already existed at line 182. Duplicate function declarations at module scope are a `SyntaxError`, so `script.js` failed to evaluate and nothing initialised at all. Removed the duplicate and hardened the original with `String(text ?? '')`, since it called `.replace` directly and would throw on the `undefined` description being passed to it.
+- **Pin renames never reached existing instances.** `createPin()` resolved the pin label once at creation and captured it in the hover handler. That was fine when labels came from static gate definitions, but composite pin names can be edited after instances exist, leaving those instances showing the old name permanently. The label is now resolved at hover time. The fix applies to all pins, not just composites, and the label is escaped since it is now user-supplied text going into `innerHTML`.
+
+### Composite Components (Reusable Sub-Circuits)
+Added true nested sub-circuits: a selection can be grouped into a named block that behaves as a single component, and expanded back into its parts.
+
+**Files Modified:**
+- `scripts/simulation.js` - Extracted per-node evaluation and added recursive composite evaluation.
+- `scripts/script.js` - Definition registry, port derivation, group/ungroup, persistence.
+- `css/style.css` - Block styling and the grouping notice.
+
+**Features:**
+- `Ctrl/Cmd + G` groups the current selection into a named block; `Ctrl/Cmd + Shift + G` expands a selected block back into its components.
+- Blocks are genuinely reusable: each instance carries its own inner state, so two copies of a counter block count independently.
+- Blocks can be nested inside other blocks.
+- Definitions are saved with the circuit, both in the undo history and in cloud saves.
+- Instances are visually distinguished with an orange header and border, so it is obvious which nodes contain a circuit rather than a single operation.
+
+**Architecture:**
+- **Type encoding:** An instance's node type is `Composite:<definitionId>`, and the definition is registered into `componentDefinitions` with its derived pin counts. Because a block is just another component type, `createNode`, wiring, pin rendering, the save format, and copy/paste all work with no special cases.
+- **Evaluation refactor:** The ~130-line gate `switch` was extracted out of the `updateSimulation` loop into a DOM-free `evaluateGate(n, s, depth)`. This is what makes nesting possible: the same logic now drives both the top-level board (where nodes have DOM elements) and the inside of a block (where they do not). The extraction was performed programmatically rather than retyped, to avoid transcription errors.
+- **Inner evaluation:** `evaluateComposite()` mirrors the fixpoint loop without any DOM access. Inner Switches and Levers read from data rather than the DOM, input ports are re-applied on every pass so an inner wire cannot overwrite them, and sequential state is written back to the instance afterwards.
+- **Per-instance state:** `instantiateInner()` gives every instance a private copy of the definition's nodes and memory. Sharing it would make two instances of the same block share flip-flop and counter state.
+- **Recursion guard:** Nesting depth is capped at 8. A block that (directly or indirectly) contains itself yields zeros instead of blowing the stack.
+- **Port derivation:** An input port is any inner input pin with no driver inside the group; an output port is any inner output pin that drives something outside the group or drives nothing at all. Ports are ordered by node position (top-to-bottom, then left-to-right) so a block's pins follow the visual layout of the circuit it came from.
+
+**Bugs Found and Fixed During Implementation:**
+- **Dropped external wiring.** Connection pin indices arrive from `dataset` as strings, but ports derived from pin counts are numbers, so the strict `===` in the port lookup never matched and every external wire was discarded on grouping (observed as 6 wires → 0). All comparisons now go through a `samePin()` helper so the two representations cannot drift apart.
+- **Grouping was two undo steps.** `deleteSelectedNode()` saves state internally, so a single undo landed on a broken intermediate board where the members were gone but the block did not yet exist. Group and ungroup now suppress the inner save and write one history entry.
+
+**Verification:**
+Built a half adder (two Switches → XOR/AND → two Lights) and recorded its truth table, then grouped the XOR and AND. The table is identical before grouping, through the block, and after ungrouping:
+
+```
+A=0 B=0 -> sum=0 carry=0
+A=0 B=1 -> sum=1 carry=0
+A=1 B=0 -> sum=1 carry=0
+A=1 B=1 -> sum=0 carry=1
+```
+
+All six external wires reconnect to the correct ports in both directions, definitions survive undo/redo, and copy/paste produces a second instance of the same definition.
+
+**Known Limitations:**
+- Blocks do not yet appear in the TAB menu. Definitions register and are fully reusable, but placing another instance currently requires copy/paste. Adding a "My Blocks" section needs tile injection, since the menu is static HTML.
+- Switches and Levers are rejected inside a block (with an explanation), because a block has no way to expose an interactive control.
+- Ports are per-pin rather than per-signal, so a half adder exposes four inputs rather than two — one input feeding two gates becomes two ports. Merging ports that share a source would make blocks tidier.
+
+### Copy / Cut / Paste / Duplicate
+Added clipboard support for selected components, including the wiring between them.
+
+**Files Modified:**
+- `scripts/script.js` - Clipboard state, selection serialisation, paste reconstruction, and key bindings.
+
+**Features:**
+- `Ctrl/Cmd + C` copies the selection, `Ctrl/Cmd + X` cuts, `Ctrl/Cmd + V` pastes, `Ctrl/Cmd + D` duplicates in place.
+- Paste lands under the cursor when it is over the workspace; otherwise successive pastes cascade so copies don't stack exactly on top of each other.
+- Node configuration (values, formulas, labels, ranges) and Switch on/off state are carried across.
+- Pasted nodes are selected on arrival, so they can be dragged immediately.
+- Snap to Grid is respected when active.
+
+**Design Notes:**
+- **Internal wiring only:** A wire is carried with the copy only when *both* of its endpoints are inside the selection. A wire to an unselected node has no meaningful counterpart in the copy, so duplicating it would create either a dangling edge or a silent extra connection to the original circuit.
+- **Id remapping:** `serializeSelection()` stores positions relative to the selection's top-left and keeps the original ids. On paste an old-id → new-id map is built as nodes are created, then used to rebuild the internal connections, so copies wire to copies rather than back to the originals.
+- **In-memory clipboard:** The system clipboard is deliberately not used. Circuits are structured data, and taking over the OS clipboard would break ordinary text copy inside the app (for example in the component search or a config field). The key handler sits behind the existing input-focus guard for the same reason.
+
+**Verification:**
+Built Switch → NOT → Light, copied all three, and toggled only the original Switch — only the original Light changed, confirming the copy is independently wired. Also confirmed config preservation (a Constant set to 42 pastes as 42), that partial selections do not duplicate wires to unselected nodes, cut/paste round-trips, and that `Ctrl+C` inside a text field is not intercepted.
+
+### Undo/Redo Keyboard Shortcuts
+`Ctrl/Cmd + Z`, `Ctrl/Cmd + Y`, and `Ctrl/Cmd + Shift + Z` had been documented in `README.md` for some time but were never actually bound — undo and redo were reachable only from the toolbar buttons.
+
+**Files Modified:**
+- `scripts/script.js`
+
+**Changes:**
+- Bound the shortcuts, routed through the existing toolbar button handlers so the history logic stays in one place.
+- Digit handling for the Quick Access Bar now skips events with a modifier held, so `Ctrl+Z` no longer also triggers slot placement.
+
+### Landing Page Stormworks Alignment Pass
+Brought the landing page onto the same design system as the simulator. Previously the landing page used its own palette (a bright blue gradient) that clashed with the dark Stormworks chrome users saw immediately after clicking "Start Designing".
+
+**Files Modified:**
+- `css/style.css` - Appended a landing-page override block.
+
+**Changes:**
+- **Background:** Replaced `linear-gradient(135deg, #2c3e50, #3498db)` with `--sw-ui-bg` (`#101a20`) plus a radial vignette so the hero reads against the animated trace field.
+- **Background Animation:** Reduced blur from 4px to 1.5px and raised opacity to 0.55. Over the old gradient the traces were an indistinct wash; on the dark field they read as circuitry and echo the workspace grid.
+- **Top Navigation:** Now mirrors `#top-bar` exactly — same three-stop gradient, `1px solid #1d2c34` border, and matching inset/drop shadows.
+- **Primary Buttons:** "Start Designing" and the Account button were soft 50px pills with a glow. They now use the simulator's chunky control treatment: `--sw-blue`, 6px radius, `2px solid #65bddf`, and the signature `inset 0 -4px/-5px 0` bottom shadow.
+- **Panels:** Account dropdown, Features modal, and auth modal adopt `--sw-panel`, `--sw-border`, and the 28px grid overlay used by the TAB menu windows.
+- **Footer/Socials:** Were `color: #000`, effectively invisible against the dark background. Now `--sw-muted`.
+- The Minecraft "CRAFT" wordmark was deliberately kept — it is product identity rather than part of the UI system.
+
+**Implementation Note:**
+Written as an appended override block (the same pattern used by the March 2026 "Stormworks Simulator Theme Overrides" section) rather than by editing the original rules. The pass is purely additive, so it can be lifted out by deleting the block.
+
+**Decision:** The simulator canvas still defaults to the light cyan theme. Dark mode remains opt-in via Settings, so there is an intentional brightness change when entering the simulator.
+
+### Top Bar Component Menu Button
+The component menu was only reachable via the `TAB` key or the small hotbar button, which made it undiscoverable for new users.
+
+**Files Modified:**
+- `index.html` - Added `#component-menu-btn` to the top bar.
+- `scripts/script.js` - Wired the button and extended Escape handling.
+- `css/style.css` - Added the button to the primary (blue) control group and gave it a pressed state.
+
+**Changes:**
+- Added a top-bar Components button using the same grid icon as the hotbar menu button, so the two read as the same action. It calls the existing `toggleMenu()`, so there is no duplicated open/close state logic.
+- Carries both a `title` and an `aria-label`.
+- Shows a pressed-in state while the menu is open.
+- **Escape Now Closes the Menu:** Escape previously did nothing here. The main hotkey handler returns early whenever an input has focus, and opening the menu auto-focuses the search field — so `TAB` was the only keyboard exit. Escape now blurs the input and closes the menu.
+
+**Known Behavior:** The existing TAB focus mode blurs the top bar while the menu is open, so the new button is visually blurred at that moment. Clicking still toggles the menu correctly.
+
+### Motion Pass (UI Animation)
+Added a consistent motion layer to make the interface feel lighter and less abrupt.
+
+**Files Modified:**
+- `css/style.css` - Motion tokens, keyframes, and transitions.
+- `scripts/script.js` - Stagger index assignment for menu tiles.
+
+**Changes:**
+- **Motion Tokens:** Shared easing (`--ease-out-quint`, `--ease-back`, `--ease-standard`) and duration (`--dur-fast/base/slow`) custom properties so timing is consistent across the app.
+- **Component Menu:** Container scales and fades on a quintic curve while the backdrop fades independently.
+- **Staggered Tiles:** Component tiles cascade in at 14ms intervals, numbered per section and capped at 260ms so long sections don't trail behind the panel.
+- **Controls:** Springy hover/press feedback on top-bar buttons, hotbar slots, menu tiles, and the landing CTA.
+- **Nodes:** Drop-in animation when a component is placed.
+- **Panels:** Entrance animation for modals and the Features showcase.
+- **Reduced Motion:** A `prefers-reduced-motion: reduce` block strips travel, scaling, and cascades while keeping state changes legible.
+
+**Implementation Note:**
+Implemented in CSS rather than with an animation library. These are enter/exit/hover transitions that CSS handles on the compositor; a runtime library would add a network dependency without buying anything, and the project documents a no-build, zero-dependency architecture. A library would be justified later for timeline sequencing, spring physics, or FLIP layout animation.
+
+Menu tiles use `animation-fill-mode: both` rather than a base `opacity: 0`, so the cascade still works but tiles remain visible if the animation never plays (animations disabled, frozen background tab, older engine). Content is never hidden behind an animation that might not run.
+
+### RESOLVED: Minimap Rendered Nothing After Placing a Component
+Fixed a long-standing bug where the minimap went completely blank the moment a component was placed. The viewport indicator (blue box) was visible on an empty board, then disappeared on the first placement and only reappeared after a node was dragged.
+
+**Files Modified:**
+- `scripts/script.js` - Node position now stored on the data model at creation.
+- `scripts/minimap.js` - Bounds hardening, resolution handling, and framing rewrite.
+
+**Root Cause:**
+`createNode()` built its `nodeData` object as `{ id, type, el, memory, config }` without `x`/`y`, but `drawMinimap()` reads `n.x`/`n.y` to compute world bounds. Those `undefined` values turned every bound into `NaN`, which propagated into the render scale and made both the node `fillRect` calls and the viewport `strokeRect` silently draw nothing. Dragging a node was the only code path that assigned `x`/`y`, which is why a drag appeared to "repair" the minimap.
+
+**Changes:**
+- **Position Sync at Creation:** `nodeData` now includes `x` and `y`. All three node paths (placement, circuit load, drag) keep the data model in sync. `saveState()` continues to read positions from the DOM, so undo/redo is unaffected.
+- **NaN-Proof Bounds:** Nodes without a finite position are skipped rather than poisoning the bounds for every other node, so a single bad entry can no longer blank the whole minimap.
+- **Viewport Always Framed:** The current viewport is unioned into the world bounds, so the indicator can never fall outside the drawn region. Verified visible at all four extreme corners.
+- **Removed Unguarded Property Read:** `n.el.offsetHeight` was read outside the existing `try/catch` and could throw, aborting the entire render.
+- **Proportional Padding:** Replaced the fixed 4000-unit world padding (added January 8, 2026) with 15% of the framed extent. The fixed value was why the map read as a near-empty box — a real circuit was scaled down to a speck.
+- **Border Offset Fix:** `moveViewToMinimap()` measured clicks with `getBoundingClientRect()`, which spans the *border* box, while the drawing scale is based on the 200x150 content box. Every click-to-pan was offset by the 2px border. Now subtracts `clientLeft`/`clientTop` and clamps to the canvas.
+- **HiDPI Rendering:** The canvas backing store now scales by `devicePixelRatio` while all drawing math stays in CSS pixels, with a `resize` listener to re-render when moved between displays. Previously the map was blurry on high-density screens.
+- **Stroke Inset:** The viewport rect is inset by half its stroke width so an edge-clamped indicator isn't visually half-clipped.
+
+**Result:**
+- Minimap renders correctly from the first placed component onward, with no drag required.
+- Click-to-pan is pixel-exact (measured 0 world-unit error, previously ~17).
+- Node rectangles and viewport indicator remain visible and usefully scaled at any circuit size.
+
+### Settings Persistence
+Settings previously reset on every page reload; only tutorial state was persisted.
+
+**Files Modified:**
+- `scripts/script.js` - Added load/save helpers and wired them into each control.
+- `index.html` - Added a pre-paint theme script.
+
+**Changes:**
+- Zoom Sensitivity, Pan Sensitivity, Snap to Grid, and Dark Mode now persist to a `nodecraft-settings` localStorage key, matching the existing `nodecraft-tutorial-*` naming convention.
+- Reads and writes are wrapped in `try/catch` so blocked or corrupt storage falls back to defaults instead of throwing.
+- `applyStoredSettings()` restores the underlying state variables (not just the toggle CSS classes) and re-syncs slider positions and On/Off labels.
+- **Flash Prevention:** `script.js` is a module at the end of `<body>`, so restoring the theme there would paint the light theme first and snap to dark on every load. A small inline script at the top of `<body>` now applies the class before the rest of the page renders; `applyStoredSettings()` only mirrors that state onto the toggle.
+
+**Result:**
+- Settings survive reloads with sliders, labels, and toggles all restored in sync.
+- No theme flash on load for users with dark mode enabled.
+
+### Unsaved Changes Warning
+A refresh previously discarded an entire circuit with no prompt.
+
+**Files Modified:**
+- `scripts/script.js`
+
+**Changes:**
+- Added a `hasUnsavedChanges` flag set in `saveState()` and cleared at the four points where work is not at risk: initial load, New Circuit, loading a cloud circuit, and a successful cloud save.
+- Added a `beforeunload` handler that warns only when there are unsaved changes *and* the board is non-empty, so the landing page and a fresh session never prompt.
+- Undo/Redo set `isRestoring`, which makes `saveState()` return early. Both handlers now set the flag explicitly, otherwise saving to the cloud and then undoing would discard that change silently.
+
+**Note:** This is a warning only. Periodic auto-save/recovery to localStorage remains on the roadmap.
+
+**Result:**
+- Verified across five states: landing page, empty simulator, after placing a node (warns), after New Circuit, and after undoing back to an empty board.
+
+### Text Encoding Fix (Mojibake)
+Four characters were stored as double-encoded UTF-8 and rendered as garbled text on the live site.
+
+**Files Modified:**
+- `index.html`
+- `GEMINI.md`
+
+**Changes:**
+- `index.html`: SQRT component icon (`√`), tutorial achievement and task icons (`🎉`, `🎯`), and the landing page copyright symbol (`©`).
+- `GEMINI.md`: degree symbol in the Delete Mode description and the completion checkmark in the refactoring status.
+
+**Result:**
+- All affected glyphs verified as correct UTF-8 on disk and in the rendered DOM.
+
+---
+
 ## March 22, 2026
 
 ### Simulator Home Button (Landing Return Without Refresh)

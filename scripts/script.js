@@ -1,10 +1,16 @@
 // script.js
 import { componentDefinitions, gateSVGs, ioSVGs, pinDescriptions, configurableTypes } from './gateDefinitions.js';
-import { updateSimulation, getConnectionValue, snapCoordinate } from './simulation.js';
+import {
+    updateSimulation, getConnectionValue, snapCoordinate,
+    setCompositeRegistry, COMPOSITE_PREFIX, isComposite, compositeIdOf
+} from './simulation.js';
 import { initTutorial, checkTutorialTaskCompletion } from './tutorial.js';
 import { initMinimap, drawMinimap } from './minimap.js';
 import { initWiring, startWiring, updateGhostLine, finishWiring, cancelWiring, createConnection, updateConnections, getWiringStatus } from './wiring.js';
 import { initLandingAnimation } from './landing_animation.js';
+import { initAgentTools } from './agentTools.js';
+import { initAgent } from './agent.js';
+import { supabase } from './supabaseClient.js';
 import { loginWithGoogle, loginWithEmail, logout, onAuthStateChange, getSession, signUp, getAccountProfile } from './auth.js';
 import { saveCircuit, loadCircuits, deleteCircuit } from './storage.js';
 
@@ -96,6 +102,10 @@ const activeKeys = new Set();
 // Snap to Grid State
 let snapToGrid = false;
 
+// Set whenever the circuit changes, cleared once it is saved, loaded or cleared.
+// Drives the beforeunload guard so a refresh can't silently discard work.
+let hasUnsavedChanges = false;
+
 // --- Continuous Input Loop ---
 function updateContinuousInputs() {
     let changed = false;
@@ -140,6 +150,68 @@ function updateContinuousInputs() {
 }
 requestAnimationFrame(updateContinuousInputs);
 
+/* --- Simulation clock -------------------------------------------------------
+   Until now the simulation only ran in response to user input, so nothing could
+   oscillate on its own and time-based parts advanced per event rather than per
+   unit of time. This drives a fixed-rate tick instead.
+   ---------------------------------------------------------------------------- */
+
+const TICKS_PER_SECOND = 20;
+const MAX_CATCHUP_TICKS = 4; // after a stall, skip time rather than fast-forward
+
+let simRunning = true;
+let simTickId = 0;
+let tickAccumulator = 0;
+let lastFrameStamp = performance.now();
+
+function runOneTick() {
+    simTickId++;
+    updateSimulation(nodes, connections, simTickId);
+}
+
+function simulationClock(now) {
+    const delta = now - lastFrameStamp;
+    lastFrameStamp = now;
+
+    if (simRunning && nodes.length > 0) {
+        tickAccumulator += delta;
+        const step = 1000 / TICKS_PER_SECOND;
+        let ticks = 0;
+        while (tickAccumulator >= step && ticks < MAX_CATCHUP_TICKS) {
+            tickAccumulator -= step;
+            ticks++;
+        }
+        // A backgrounded tab can accumulate seconds of debt; drop it rather
+        // than replaying it all at once.
+        if (tickAccumulator > step * MAX_CATCHUP_TICKS) tickAccumulator = 0;
+        for (let i = 0; i < ticks; i++) runOneTick();
+    }
+
+    requestAnimationFrame(simulationClock);
+}
+requestAnimationFrame(simulationClock);
+
+const simToggleBtn = document.getElementById('sim-toggle-btn');
+const simStepBtn = document.getElementById('sim-step-btn');
+
+if (simToggleBtn) simToggleBtn.addEventListener('click', () => setSimRunning(!simRunning));
+if (simStepBtn) simStepBtn.addEventListener('click', () => {
+    // Stepping implies paused, otherwise the next frame overwrites the step.
+    if (simRunning) setSimRunning(false);
+    runOneTick();
+});
+
+function setSimRunning(running) {
+    simRunning = running;
+    lastFrameStamp = performance.now();
+    tickAccumulator = 0;
+    const btn = document.getElementById('sim-toggle-btn');
+    if (btn) {
+        btn.classList.toggle('paused', !running);
+        btn.title = running ? 'Pause simulation' : 'Resume simulation';
+    }
+}
+
 // --- Menu & Placing Logic ---
 const descTitle = document.getElementById('desc-title');
 const descText = document.getElementById('desc-text');
@@ -173,7 +245,8 @@ function getOutputPinSignalType(type) {
 }
 
 function escapeHtml(text) {
-    return text
+    // Coerced so callers can pass undefined/numbers without throwing.
+    return String(text ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -273,6 +346,47 @@ document.addEventListener('keydown', (e) => {
             toggleDeleteMode();
         }
     }
+    // Clipboard. Reached only when focus is outside an input (the guard at the
+    // top of this handler returns early), so ordinary text copy still works.
+    if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'c') {
+            if (copySelection()) e.preventDefault();
+        } else if (key === 'x') {
+            if (cutSelection()) e.preventDefault();
+        } else if (key === 'v') {
+            if (pasteAtPointer()) e.preventDefault();
+        } else if (key === 'd') {
+            // Always prevent default: Ctrl+D is "bookmark" in most browsers.
+            e.preventDefault();
+            duplicateSelection();
+        } else if (key === 'z') {
+            // Undo/redo were toolbar-only despite being documented as shortcuts.
+            // Routed through the buttons so the history logic stays in one place.
+            e.preventDefault();
+            document.getElementById(e.shiftKey ? 'redo-btn' : 'undo-btn')?.click();
+        } else if (key === 'y') {
+            e.preventDefault();
+            document.getElementById('redo-btn')?.click();
+        } else if (key === 'g') {
+            // Ctrl+G groups a selection into a block, Ctrl+Shift+G ungroups one.
+            e.preventDefault();
+            if (e.shiftKey) {
+                const target = selectedNodes.find(el => isComposite(el.dataset.type));
+                const result = target
+                    ? ungroupComposite(target)
+                    : { ok: false, reason: 'Select a block to ungroup.' };
+                if (!result.ok) showCompositeNotice(result.reason);
+            } else {
+                // Same dialog as the right-click route, so both paths behave alike.
+                openCreateBlockDialog();
+            }
+        }
+        // Quick-access slots are plain digits, so skip them while a modifier is
+        // held — otherwise Ctrl+Z/Ctrl+Y would also trigger slot placement.
+        return;
+    }
+
     if ((e.key >= '0' && e.key <= '9')) {
         const slot = document.querySelector(`.qa-slot[data-slot="${e.key}"]`);
         if (slot && slot.dataset.type) startPlacing(slot.dataset.type);
@@ -295,6 +409,11 @@ document.addEventListener('keyup', (e) => {
 });
 
 if (qaMenuBtn) qaMenuBtn.addEventListener('click', toggleMenu);
+
+// Top-bar equivalent of the hotbar menu button, so the component menu is
+// reachable without knowing the Tab shortcut.
+const componentMenuBtn = document.getElementById('component-menu-btn');
+if (componentMenuBtn) componentMenuBtn.addEventListener('click', toggleMenu);
 if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
 
 // Delete Mode Toggle
@@ -326,6 +445,62 @@ const panSensitivityValue = document.getElementById('pan-sensitivity-value');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const snapGridToggle = document.getElementById('snap-grid-toggle');
 
+/* --- Settings Persistence --- */
+const SETTINGS_KEY = 'nodecraft-settings';
+
+function readStoredSettings() {
+    try {
+        return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    } catch (e) {
+        // Corrupt JSON or storage blocked (private mode): fall back to defaults.
+        return {};
+    }
+}
+
+function persistSettings() {
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+            zoomSensitivity,
+            panSensitivity,
+            snapToGrid,
+            darkMode: document.body.classList.contains('dark-mode')
+        }));
+    } catch (e) {
+        // Storage full or unavailable; settings simply won't survive the reload.
+    }
+}
+
+function setToggleState(toggleEl, on) {
+    if (!toggleEl) return;
+    toggleEl.classList.toggle('on', on);
+    if (toggleEl.nextElementSibling) toggleEl.nextElementSibling.innerText = on ? 'On' : 'Off';
+}
+
+function applyStoredSettings() {
+    const stored = readStoredSettings();
+
+    if (Number.isFinite(stored.zoomSensitivity)) {
+        zoomSensitivity = stored.zoomSensitivity;
+        if (zoomSensitivitySlider) zoomSensitivitySlider.value = zoomSensitivity;
+    }
+    if (zoomSensitivityValue) zoomSensitivityValue.textContent = zoomSensitivity.toFixed(1) + 'x';
+
+    if (Number.isFinite(stored.panSensitivity)) {
+        panSensitivity = stored.panSensitivity;
+        if (panSensitivitySlider) panSensitivitySlider.value = panSensitivity;
+    }
+    if (panSensitivityValue) panSensitivityValue.textContent = panSensitivity.toFixed(1) + 'x';
+
+    snapToGrid = !!stored.snapToGrid;
+    setToggleState(snapGridToggle, snapToGrid);
+
+    // The dark-mode class is applied pre-paint by the inline script in index.html,
+    // so here we only mirror that state onto the toggle control.
+    setToggleState(darkModeToggle, document.body.classList.contains('dark-mode'));
+}
+
+applyStoredSettings();
+
 if (settingsBtn) {
     settingsBtn.addEventListener('click', () => {
         settingsModal.classList.remove('hidden');
@@ -350,6 +525,7 @@ if (zoomSensitivitySlider) {
     zoomSensitivitySlider.addEventListener('input', (e) => {
         zoomSensitivity = parseFloat(e.target.value);
         zoomSensitivityValue.textContent = zoomSensitivity.toFixed(1) + 'x';
+        persistSettings();
     });
 }
 
@@ -357,6 +533,7 @@ if (panSensitivitySlider) {
     panSensitivitySlider.addEventListener('input', (e) => {
         panSensitivity = parseFloat(e.target.value);
         panSensitivityValue.textContent = panSensitivity.toFixed(1) + 'x';
+        persistSettings();
     });
 }
 
@@ -365,6 +542,7 @@ if (snapGridToggle) {
         snapGridToggle.classList.toggle('on');
         snapToGrid = snapGridToggle.classList.contains('on');
         snapGridToggle.nextElementSibling.innerText = snapToGrid ? "On" : "Off";
+        persistSettings();
     });
 }
 
@@ -380,6 +558,7 @@ if (darkModeToggle) {
             document.body.classList.remove('dark-mode');
             darkModeToggle.nextElementSibling.innerText = "Off";
         }
+        persistSettings();
     });
 }
 
@@ -387,7 +566,22 @@ if (darkModeToggle) {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (settingsModal && !settingsModal.classList.contains('hidden')) settingsModal.classList.add('hidden');
+        if (blockModal && !blockModal.classList.contains('hidden')) closeBlockModal();
+        // Close the component menu too. This listener is separate from the main
+        // hotkey handler, which returns early while the search input has focus.
+        if (componentMenu && !componentMenu.classList.contains('hidden')) {
+            if (e.target.tagName === 'INPUT') e.target.blur();
+            toggleMenu();
+        }
     }
+});
+
+// Stagger index for the menu item entrance animation, numbered within each
+// section so every group starts its cascade from zero.
+document.querySelectorAll('.menu-grid').forEach(grid => {
+    grid.querySelectorAll('.menu-item').forEach((item, i) => {
+        item.style.setProperty('--stagger-index', i);
+    });
 });
 
 function closeSettings() {
@@ -424,6 +618,7 @@ function toggleMenu() {
         }
     } else {
         menuTransitioning = true;
+        hideMenuTooltip(); // don't leave it floating once the menu is gone
         componentMenu.classList.add('hidden');
         componentMenu.addEventListener('transitionend', function onTransitionEnd(e) {
             // Only handle the opacity transition to prevent multiple fires
@@ -517,6 +712,74 @@ menuItems.forEach(item => {
     });
 });
 
+/* --- TAB menu hover tooltip ---
+   The full descriptions carry truth tables and markup, which is far too much
+   for a hover. This reduces one to a single plain-text sentence so the tooltip
+   stays a quick hint rather than a second description panel. */
+
+const menuTooltip = document.getElementById('menu-tooltip');
+const shortDescCache = new Map();
+
+function shortDescriptionFor(type) {
+    if (shortDescCache.has(type)) return shortDescCache.get(type);
+
+    const def = componentDefinitions[type];
+    let text = '';
+    if (def && def.desc) {
+        // Tables and <br> become sentence breaks so we don't splice words together.
+        const plain = def.desc
+            .replace(/<table[\s\S]*?<\/table>/gi, ' ')
+            .replace(/<br\s*\/?>/gi, ' ')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const firstSentence = plain.split(/(?<=[.!?])\s/)[0] || plain;
+        text = firstSentence.length > 120 ? `${firstSentence.slice(0, 117).trimEnd()}…` : firstSentence;
+    }
+
+    shortDescCache.set(type, text);
+    return text;
+}
+
+function showMenuTooltip(type, clientX, clientY) {
+    if (!menuTooltip) return;
+    const def = componentDefinitions[type];
+    if (!def) return;
+
+    const detail = shortDescriptionFor(type);
+    menuTooltip.innerHTML = `<strong>${escapeHtml(def.label || type)}</strong>`
+        + (detail ? `<span>${escapeHtml(detail)}</span>` : '');
+    menuTooltip.classList.remove('hidden');
+    positionMenuTooltip(clientX, clientY);
+}
+
+function positionMenuTooltip(clientX, clientY) {
+    if (!menuTooltip || menuTooltip.classList.contains('hidden')) return;
+    const gap = 16;
+    const rect = menuTooltip.getBoundingClientRect();
+    let left = clientX + gap;
+    let top = clientY + gap;
+    if (left + rect.width > window.innerWidth - 8) left = clientX - rect.width - gap;
+    if (top + rect.height > window.innerHeight - 8) top = clientY - rect.height - gap;
+    menuTooltip.style.left = `${Math.max(8, left)}px`;
+    menuTooltip.style.top = `${Math.max(8, top)}px`;
+}
+
+function hideMenuTooltip() {
+    if (menuTooltip) menuTooltip.classList.add('hidden');
+}
+
+menuItems.forEach(item => {
+    const type = item.dataset.type;
+    item.addEventListener('mouseenter', (e) => showMenuTooltip(type, e.clientX, e.clientY));
+    item.addEventListener('mousemove', (e) => positionMenuTooltip(e.clientX, e.clientY));
+    item.addEventListener('mouseleave', hideMenuTooltip);
+    // Dragging a tile to the hotbar shouldn't leave the tooltip stranded.
+    item.addEventListener('dragstart', hideMenuTooltip);
+});
+
 function startPlacing(type) {
     if (ghostNode) ghostNode.remove();
     placingType = type;
@@ -553,6 +816,742 @@ function clearSelection() { selectedNodes.forEach(n => n.classList.remove('selec
 function addToSelection(node) {
     if (!selectedNodes.includes(node)) { selectedNodes.push(node); node.classList.add('selected'); }
 }
+
+/* --- Clipboard: Copy / Cut / Paste / Duplicate --- */
+
+// In-memory only. The system clipboard is deliberately not used: circuits are
+// structured data, and hijacking it would break ordinary text copy in the app.
+let clipboard = null;
+// Successive pastes of the same clipboard cascade instead of stacking exactly.
+let pasteCascade = 0;
+let lastPointerInWorkspace = null;
+
+const PASTE_CASCADE_STEP = 24;
+
+function nodeLeft(n) { return parseFloat(n.el.style.left) || 0; }
+function nodeTop(n) { return parseFloat(n.el.style.top) || 0; }
+
+// Captures the current selection as a self-contained fragment. Positions are
+// stored relative to the selection's top-left so it can be dropped anywhere.
+function serializeSelection() {
+    if (selectedNodes.length === 0) return null;
+
+    const ids = new Set(selectedNodes.map(el => el.dataset.id));
+    const picked = nodes.filter(n => ids.has(n.id));
+    if (picked.length === 0) return null;
+
+    const minX = Math.min(...picked.map(nodeLeft));
+    const minY = Math.min(...picked.map(nodeTop));
+
+    return {
+        nodes: picked.map(n => ({
+            id: n.id,
+            type: n.type,
+            dx: nodeLeft(n) - minX,
+            dy: nodeTop(n) - minY,
+            config: JSON.parse(JSON.stringify(n.config || {})),
+            isOn: n.type === 'Switch'
+                ? n.el.querySelector('.toggle-switch').classList.contains('on')
+                : undefined
+        })),
+        // Only wires with BOTH ends inside the selection are carried. A wire to
+        // an unselected node has no meaningful counterpart in the copy.
+        connections: connections
+            .filter(c => ids.has(c.sourceNode) && ids.has(c.destNode))
+            .map(c => ({
+                sourceNode: c.sourceNode, sourceIndex: c.sourceIndex,
+                destNode: c.destNode, destIndex: c.destIndex
+            }))
+    };
+}
+
+function copySelection() {
+    const fragment = serializeSelection();
+    if (!fragment) return false;
+    clipboard = fragment;
+    pasteCascade = 0;
+    return true;
+}
+
+// Rebuilds a fragment at the given world position and selects the result, so
+// the paste can be dragged straight away.
+function pasteClipboard(worldX, worldY) {
+    if (!clipboard || clipboard.nodes.length === 0) return false;
+
+    clearSelection();
+    cancelPlacing();
+
+    // Old id -> new id, so internal wiring survives the copy.
+    const idMap = new Map();
+
+    clipboard.nodes.forEach(data => {
+        let x = worldX + data.dx;
+        let y = worldY + data.dy;
+        if (snapToGrid) { x = snapCoordinate(x); y = snapCoordinate(y); }
+
+        const nodeEl = createNode(data.type, x, y);
+        const nodeObj = nodes[nodes.length - 1];
+        idMap.set(data.id, nodeObj.id);
+
+        nodeObj.config = { ...data.config };
+        if (nodeObj.config.label) {
+            const header = nodeEl.querySelector('.node-header');
+            header.querySelector('span').innerText = nodeObj.config.label;
+            adjustHeaderFontSize(header);
+        }
+        if (data.type === 'Switch' && data.isOn) {
+            nodeEl.querySelector('.toggle-switch').classList.add('on');
+        }
+
+        addToSelection(nodeEl);
+    });
+
+    clipboard.connections.forEach(c => {
+        const source = nodes.find(n => n.id === idMap.get(c.sourceNode));
+        const dest = nodes.find(n => n.id === idMap.get(c.destNode));
+        if (!source || !dest) return;
+        const sourcePin = source.el.querySelector(`.outputs .pin[data-index="${c.sourceIndex}"]`);
+        const destPin = dest.el.querySelector(`.inputs .pin[data-index="${c.destIndex}"]`);
+        if (sourcePin && destPin) createConnection(sourcePin, destPin);
+    });
+
+    updateSimulation(nodes, connections);
+    drawMinimap();
+    saveState();
+    return true;
+}
+
+// Drops the clipboard under the cursor when it is over the workspace, otherwise
+// cascades from the fragment's original position.
+function pasteAtPointer() {
+    if (!clipboard) return false;
+
+    if (lastPointerInWorkspace) {
+        const world = toWorld(lastPointerInWorkspace.x, lastPointerInWorkspace.y);
+        return pasteClipboard(world.x, world.y);
+    }
+
+    pasteCascade++;
+    const offset = pasteCascade * PASTE_CASCADE_STEP;
+    const originX = Math.min(...clipboard.nodes.map(n => n.dx));
+    const originY = Math.min(...clipboard.nodes.map(n => n.dy));
+    return pasteClipboard(originX + offset, originY + offset);
+}
+
+// Duplicate in place: copy the selection and drop it slightly offset, without
+// disturbing whatever is already on the clipboard.
+function duplicateSelection() {
+    const saved = clipboard;
+    const savedCascade = pasteCascade;
+    if (!copySelection()) { clipboard = saved; pasteCascade = savedCascade; return false; }
+
+    // Anchor on the original selection's top-left, offset by one cascade step.
+    const ids = new Set(clipboard.nodes.map(n => n.id));
+    const originals = nodes.filter(n => ids.has(n.id));
+    const baseX = Math.min(...originals.map(nodeLeft));
+    const baseY = Math.min(...originals.map(nodeTop));
+
+    const ok = pasteClipboard(baseX + PASTE_CASCADE_STEP, baseY + PASTE_CASCADE_STEP);
+    clipboard = saved;
+    pasteCascade = savedCascade;
+    return ok;
+}
+
+function cutSelection() {
+    if (!copySelection()) return false;
+    deleteSelectedNode();
+    return true;
+}
+
+/* --- Composite Components (reusable sub-circuits) ---
+   A composite is a *definition* (the inner circuit plus its boundary ports)
+   that can be instantiated many times. Each instance keeps its own inner
+   state, so two copies of a counter block count independently.
+
+   Instances are ordinary nodes whose type is `Composite:<definitionId>`.
+   Registering the definition in componentDefinitions means node creation,
+   wiring, saving and the component menu need no special cases. */
+
+const compositeDefinitions = new Map();
+setCompositeRegistry(compositeDefinitions);
+
+let nextCompositeId = 1;
+
+// Transient message for grouping failures, which are usually explanations
+// ("that selection has no outputs") rather than errors worth a modal.
+let compositeNoticeTimer = null;
+function showCompositeNotice(message) {
+    if (!message) return;
+    let el = document.getElementById('composite-notice');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'composite-notice';
+        document.body.appendChild(el);
+    }
+    el.innerText = message;
+    el.classList.add('visible');
+    clearTimeout(compositeNoticeTimer);
+    compositeNoticeTimer = setTimeout(() => el.classList.remove('visible'), 4000);
+}
+
+// Registers a definition so instances of it can be created and simulated.
+function registerCompositeDefinition(def) {
+    compositeDefinitions.set(def.id, def);
+
+    const type = COMPOSITE_PREFIX + def.id;
+    componentDefinitions[type] = {
+        inputs: def.inputs.length,
+        outputs: def.outputs.length,
+        label: def.name,
+        isComposite: true,
+        desc: `<b>${escapeHtml(def.name)}</b>`
+             + (def.description ? `<br>${escapeHtml(def.description)}` : '')
+             + `<br><br>A custom block built from ${def.nodes.length} component${def.nodes.length === 1 ? '' : 's'}.`
+             + `<br><br>Inputs: ${def.inputs.length} &nbsp; Outputs: ${def.outputs.length}`
+             + `<br><br>Right-click an instance to rename it or expand it back into its parts.`
+    };
+    pinDescriptions[type] = {
+        inputs: def.inputs.map(p => p.label),
+        outputs: def.outputs.map(p => p.label)
+    };
+    return type;
+}
+
+/* Works out which inner pins become the block's boundary ports.
+
+   An input port is any inner input pin with no driver inside the group — it
+   has to be fed from outside. An output port is any inner output pin that
+   either drives something outside the group, or drives nothing at all (so the
+   value is still reachable once wrapped). Ports are ordered by node position,
+   top-to-bottom then left-to-right, so the block's pins match the visual
+   layout of the circuit it came from. */
+/* Pin indices arrive from `dataset` as strings on connection records but are
+   numbers when derived from a definition's pin counts. Everything below
+   compares them through this, so the two representations can't drift apart. */
+function samePin(a, b) { return Number(a) === Number(b); }
+
+function deriveCompositePorts(memberIds, memberNodes) {
+    const internal = connections.filter(c => memberIds.has(c.sourceNode) && memberIds.has(c.destNode));
+    const drivenInside = new Set(internal.map(c => `${c.destNode}:${c.destIndex}`));
+    const consumedInside = new Set(internal.map(c => `${c.sourceNode}:${c.sourceIndex}`));
+
+    const ordered = [...memberNodes].sort((a, b) => (nodeTop(a) - nodeTop(b)) || (nodeLeft(a) - nodeLeft(b)));
+
+    const inputs = [];
+    const outputs = [];
+
+    ordered.forEach(n => {
+        const def = componentDefinitions[n.type];
+        if (!def) return;
+        const label = n.config.label || def.label || n.type;
+
+        for (let i = 0; i < def.inputs; i++) {
+            if (!drivenInside.has(`${n.id}:${i}`)) {
+                inputs.push({ nodeId: n.id, pinIndex: i, label: `${label} in ${i + 1}` });
+            }
+        }
+        for (let i = 0; i < def.outputs; i++) {
+            const key = `${n.id}:${i}`;
+            const goesOutside = connections.some(c =>
+                c.sourceNode === n.id && samePin(c.sourceIndex, i) && !memberIds.has(c.destNode));
+            if (goesOutside || !consumedInside.has(key)) {
+                outputs.push({ nodeId: n.id, pinIndex: i, label: `${label} out` });
+            }
+        }
+    });
+
+    return { inputs, outputs };
+}
+
+// Wraps the current selection into a new composite definition and replaces it
+// on the board with a single instance, preserving connections to the outside.
+function groupSelectionIntoComposite(name, description, portLabels) {
+    if (selectedNodes.length < 2) return { ok: false, reason: 'Select at least two components to group.' };
+
+    const memberIds = new Set(selectedNodes.map(el => el.dataset.id));
+    const memberNodes = nodes.filter(n => memberIds.has(n.id));
+    if (memberNodes.length < 2) return { ok: false, reason: 'Select at least two components to group.' };
+
+    // A composite has no way to expose an interactive control, so keep them out.
+    const interactive = memberNodes.find(n => n.type === 'Switch' || n.type === 'Lever');
+    if (interactive) {
+        return { ok: false, reason: `${interactive.type} is an input control and cannot live inside a block. Leave it outside and wire it to the block's input.` };
+    }
+
+    const { inputs, outputs } = deriveCompositePorts(memberIds, memberNodes);
+    if (outputs.length === 0) return { ok: false, reason: 'That selection has no outputs, so the block would do nothing.' };
+
+    // Apply names typed in the dialog. Derivation is deterministic (ordered by
+    // node position), so the dialog's preview and this result line up by index.
+    if (portLabels) {
+        if (Array.isArray(portLabels.inputs)) {
+            inputs.forEach((p, i) => { if (portLabels.inputs[i]) p.label = portLabels.inputs[i]; });
+        }
+        if (Array.isArray(portLabels.outputs)) {
+            outputs.forEach((p, i) => { if (portLabels.outputs[i]) p.label = portLabels.outputs[i]; });
+        }
+    }
+
+    const minX = Math.min(...memberNodes.map(nodeLeft));
+    const minY = Math.min(...memberNodes.map(nodeTop));
+
+    const def = {
+        id: `comp-${nextCompositeId++}`,
+        name: name && name.trim() ? name.trim() : `Block ${nextCompositeId - 1}`,
+        // Stored now so a future "save blocks as Microcontrollers" menu has the
+        // metadata it needs without another migration.
+        description: (description || '').trim(),
+        createdAt: new Date().toISOString(),
+        nodes: memberNodes.map(n => ({
+            id: n.id,
+            type: n.type,
+            dx: nodeLeft(n) - minX,
+            dy: nodeTop(n) - minY,
+            config: JSON.parse(JSON.stringify(n.config || {})),
+            isOn: undefined
+        })),
+        connections: connections
+            .filter(c => memberIds.has(c.sourceNode) && memberIds.has(c.destNode))
+            .map(c => ({ sourceNode: c.sourceNode, sourceIndex: c.sourceIndex, destNode: c.destNode, destIndex: c.destIndex })),
+        inputs,
+        outputs
+    };
+
+    const type = registerCompositeDefinition(def);
+
+    // Remember how the outside world was attached before the members go away.
+    const externalIn = connections
+        .filter(c => !memberIds.has(c.sourceNode) && memberIds.has(c.destNode))
+        .map(c => ({ ...c, portIndex: inputs.findIndex(p => p.nodeId === c.destNode && samePin(p.pinIndex, c.destIndex)) }));
+    const externalOut = connections
+        .filter(c => memberIds.has(c.sourceNode) && !memberIds.has(c.destNode))
+        .map(c => ({ ...c, portIndex: outputs.findIndex(p => p.nodeId === c.sourceNode && samePin(p.pinIndex, c.sourceIndex)) }));
+
+    // Grouping must be a single undo step. deleteSelectedNode() saves state on
+    // its own, which would otherwise leave an intermediate history entry where
+    // the members are gone but the block does not exist yet.
+    const wasRestoring = isRestoring;
+    isRestoring = true;
+
+    deleteSelectedNode();
+
+    const instanceEl = createNode(type, minX, minY);
+
+    // Re-attach the outside wiring to the block's ports.
+    externalIn.forEach(c => {
+        if (c.portIndex < 0) return;
+        const source = nodes.find(n => n.id === c.sourceNode);
+        if (!source) return;
+        const sp = source.el.querySelector(`.outputs .pin[data-index="${c.sourceIndex}"]`);
+        const dp = instanceEl.querySelector(`.inputs .pin[data-index="${c.portIndex}"]`);
+        if (sp && dp) createConnection(sp, dp);
+    });
+    externalOut.forEach(c => {
+        if (c.portIndex < 0) return;
+        const dest = nodes.find(n => n.id === c.destNode);
+        if (!dest) return;
+        const sp = instanceEl.querySelector(`.outputs .pin[data-index="${c.portIndex}"]`);
+        const dp = dest.el.querySelector(`.inputs .pin[data-index="${c.destIndex}"]`);
+        if (sp && dp) createConnection(sp, dp);
+    });
+
+    clearSelection();
+    addToSelection(instanceEl);
+    updateSimulation(nodes, connections);
+    drawMinimap();
+
+    isRestoring = wasRestoring;
+    saveState();
+    return { ok: true, name: def.name, inputs: inputs.length, outputs: outputs.length, type };
+}
+
+// Expands a composite instance back into its parts, so learners can open a
+// block up and see what it is made of.
+function ungroupComposite(instanceEl) {
+    const instance = nodes.find(n => n.el === instanceEl);
+    if (!instance || !isComposite(instance.type)) return { ok: false, reason: 'Select a block to ungroup.' };
+
+    const def = compositeDefinitions.get(compositeIdOf(instance.type));
+    if (!def) return { ok: false, reason: 'That block definition is missing.' };
+
+    const baseX = nodeLeft(instance);
+    const baseY = nodeTop(instance);
+
+    // How the instance was wired before it disappears.
+    const incoming = connections.filter(c => c.destNode === instance.id).map(c => ({ ...c }));
+    const outgoing = connections.filter(c => c.sourceNode === instance.id).map(c => ({ ...c }));
+
+    // Same single-undo-step reasoning as grouping.
+    const wasRestoring = isRestoring;
+    isRestoring = true;
+
+    const idMap = new Map();
+    clearSelection();
+    addToSelection(instanceEl);
+    deleteSelectedNode();
+
+    def.nodes.forEach(nd => {
+        const el = createNode(nd.type, baseX + nd.dx, baseY + nd.dy);
+        const obj = nodes[nodes.length - 1];
+        idMap.set(nd.id, obj.id);
+        obj.config = JSON.parse(JSON.stringify(nd.config || {}));
+        if (obj.config.label) {
+            const header = el.querySelector('.node-header');
+            header.querySelector('span').innerText = obj.config.label;
+            adjustHeaderFontSize(header);
+        }
+        addToSelection(el);
+    });
+
+    const pinOf = (nodeId, kind, index) => {
+        const n = nodes.find(x => x.id === idMap.get(nodeId));
+        return n ? n.el.querySelector(`.${kind} .pin[data-index="${index}"]`) : null;
+    };
+
+    def.connections.forEach(c => {
+        const sp = pinOf(c.sourceNode, 'outputs', c.sourceIndex);
+        const dp = pinOf(c.destNode, 'inputs', c.destIndex);
+        if (sp && dp) createConnection(sp, dp);
+    });
+
+    // Reconnect the outside world to the pins the ports stood for.
+    incoming.forEach(c => {
+        const port = def.inputs[c.destIndex];
+        if (!port) return;
+        const source = nodes.find(n => n.id === c.sourceNode);
+        const dp = pinOf(port.nodeId, 'inputs', port.pinIndex);
+        if (!source || !dp) return;
+        const sp = source.el.querySelector(`.outputs .pin[data-index="${c.sourceIndex}"]`);
+        if (sp) createConnection(sp, dp);
+    });
+    outgoing.forEach(c => {
+        const port = def.outputs[c.sourceIndex];
+        if (!port) return;
+        const dest = nodes.find(n => n.id === c.destNode);
+        const sp = pinOf(port.nodeId, 'outputs', port.pinIndex);
+        if (!dest || !sp) return;
+        const dp = dest.el.querySelector(`.inputs .pin[data-index="${c.destIndex}"]`);
+        if (dp) createConnection(sp, dp);
+    });
+
+    updateSimulation(nodes, connections);
+    drawMinimap();
+
+    isRestoring = wasRestoring;
+    saveState();
+    return { ok: true, expanded: def.nodes.length };
+}
+
+/* --- Block dialog (create / edit) --- */
+
+const blockModal = document.getElementById('block-modal');
+const blockModalTitle = document.getElementById('block-modal-title');
+const blockNameInput = document.getElementById('block-name');
+const blockDescInput = document.getElementById('block-desc');
+const blockPortsSummary = document.getElementById('block-ports-summary');
+const blockPortsEditor = document.getElementById('block-ports-editor');
+const blockConfirmBtn = document.getElementById('block-confirm');
+
+/* Builds one text field per pin, pre-filled with the current label. Derived
+   labels like "XOR in 1" describe where a pin came from, not what it means —
+   this is where "A" or "Carry" gets typed in. */
+function renderPortEditor(inputs, outputs) {
+    if (!blockPortsEditor) return;
+    blockPortsEditor.innerHTML = '';
+
+    const column = (title, ports, kind) => {
+        const col = document.createElement('div');
+        col.className = 'block-port-col';
+        col.innerHTML = `<div class="block-port-col-title">${title}</div>`;
+        if (ports.length === 0) {
+            col.innerHTML += '<div class="block-port-empty">None</div>';
+            return col;
+        }
+        ports.forEach((port, i) => {
+            const row = document.createElement('div');
+            row.className = 'block-port-row';
+            const num = document.createElement('span');
+            num.className = 'block-port-num';
+            num.innerText = i + 1;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = 24;
+            input.autocomplete = 'off';
+            input.dataset.portKind = kind;
+            input.dataset.portIndex = String(i);
+            input.value = port.label || '';
+            input.placeholder = `${kind === 'input' ? 'Input' : 'Output'} ${i + 1}`;
+            row.appendChild(num);
+            row.appendChild(input);
+            col.appendChild(row);
+        });
+        return col;
+    };
+
+    blockPortsEditor.appendChild(column('Inputs', inputs, 'input'));
+    blockPortsEditor.appendChild(column('Outputs', outputs, 'output'));
+}
+
+// Falls back to the derived label when a field is left blank, so a pin is
+// never nameless.
+function readPortLabels(inputs, outputs) {
+    const read = (kind, ports) => ports.map((port, i) => {
+        const field = blockPortsEditor
+            && blockPortsEditor.querySelector(`input[data-port-kind="${kind}"][data-port-index="${i}"]`);
+        const typed = field ? field.value.trim() : '';
+        return typed || port.label || `${kind === 'input' ? 'Input' : 'Output'} ${i + 1}`;
+    });
+    return { inputs: read('input', inputs), outputs: read('output', outputs) };
+}
+
+// What the dialog is currently doing: creating from a selection, or editing an
+// existing definition.
+let blockDialogMode = null;
+let blockDialogTarget = null;
+
+function closeBlockModal() {
+    if (blockModal) blockModal.classList.add('hidden');
+    blockDialogMode = null;
+    blockDialogTarget = null;
+}
+
+/* Previews the ports the selection would produce, so the name isn't chosen
+   blind — if the counts look wrong, that is the moment to cancel and rewire. */
+function openCreateBlockDialog() {
+    if (!blockModal) return;
+
+    const memberIds = new Set(selectedNodes.map(el => el.dataset.id));
+    const memberNodes = nodes.filter(n => memberIds.has(n.id));
+    if (memberNodes.length < 2) {
+        showCompositeNotice('Select at least two components to group.');
+        return;
+    }
+    const interactive = memberNodes.find(n => n.type === 'Switch' || n.type === 'Lever');
+    if (interactive) {
+        showCompositeNotice(`${interactive.type} is an input control and cannot live inside a block. Leave it outside and wire it to the block's input.`);
+        return;
+    }
+
+    const { inputs, outputs } = deriveCompositePorts(memberIds, memberNodes);
+    if (outputs.length === 0) {
+        showCompositeNotice('That selection has no outputs, so the block would do nothing.');
+        return;
+    }
+
+    blockDialogMode = 'create';
+    // Held so the confirm step edits the same ports the preview showed.
+    blockDialogTarget = { inputs, outputs };
+    blockModalTitle.innerText = 'Create Block';
+    blockConfirmBtn.innerText = 'Create Block';
+    blockNameInput.value = '';
+    blockDescInput.value = '';
+    blockPortsSummary.innerHTML =
+        `<span>${memberNodes.length} component${memberNodes.length === 1 ? '' : 's'}</span>`
+        + `<span>${inputs.length} input${inputs.length === 1 ? '' : 's'}</span>`
+        + `<span>${outputs.length} output${outputs.length === 1 ? '' : 's'}</span>`;
+    renderPortEditor(inputs, outputs);
+
+    blockModal.classList.remove('hidden');
+    blockNameInput.focus();
+}
+
+function openEditBlockDialog(instanceEl) {
+    if (!blockModal) return;
+    const instance = nodes.find(n => n.el === instanceEl);
+    if (!instance || !isComposite(instance.type)) return;
+    const def = compositeDefinitions.get(compositeIdOf(instance.type));
+    if (!def) return;
+
+    blockDialogMode = 'edit';
+    blockDialogTarget = def;
+    blockModalTitle.innerText = 'Block Details';
+    blockConfirmBtn.innerText = 'Save Changes';
+    blockNameInput.value = def.name;
+    blockDescInput.value = def.description || '';
+    blockPortsSummary.innerHTML =
+        `<span>${def.nodes.length} component${def.nodes.length === 1 ? '' : 's'}</span>`
+        + `<span>${def.inputs.length} input${def.inputs.length === 1 ? '' : 's'}</span>`
+        + `<span>${def.outputs.length} output${def.outputs.length === 1 ? '' : 's'}</span>`;
+    renderPortEditor(def.inputs, def.outputs);
+
+    blockModal.classList.remove('hidden');
+    blockNameInput.focus();
+    blockNameInput.select();
+}
+
+// Renaming updates every instance of the definition, which is the point of
+// definitions being shared rather than copied per instance.
+function applyBlockDialog() {
+    if (blockDialogMode === 'create') {
+        const preview = blockDialogTarget || { inputs: [], outputs: [] };
+        const labels = readPortLabels(preview.inputs, preview.outputs);
+        const result = groupSelectionIntoComposite(blockNameInput.value, blockDescInput.value, labels);
+        closeBlockModal();
+        if (!result.ok) showCompositeNotice(result.reason);
+        else showCompositeNotice(`Created "${result.name}" — ${result.inputs} in, ${result.outputs} out. Right-click it to edit or ungroup.`);
+        return;
+    }
+
+    if (blockDialogMode === 'edit' && blockDialogTarget) {
+        const def = blockDialogTarget;
+        def.name = blockNameInput.value.trim() || def.name;
+        def.description = blockDescInput.value.trim();
+
+        const labels = readPortLabels(def.inputs, def.outputs);
+        def.inputs.forEach((p, i) => { p.label = labels.inputs[i]; });
+        def.outputs.forEach((p, i) => { p.label = labels.outputs[i]; });
+
+        // Re-registering refreshes pinDescriptions, which drives both the pin
+        // hover tooltips and the component menu's description panel.
+        registerCompositeDefinition(def);
+
+        // Re-label every instance on the board.
+        nodes.filter(n => isComposite(n.type) && compositeIdOf(n.type) === def.id).forEach(n => {
+            const header = n.el.querySelector('.node-header');
+            if (header && header.querySelector('span')) {
+                header.querySelector('span').innerText = def.name;
+                adjustHeaderFontSize(header);
+            }
+        });
+
+        closeBlockModal();
+        saveState();
+        return;
+    }
+
+    closeBlockModal();
+}
+
+if (blockConfirmBtn) blockConfirmBtn.addEventListener('click', applyBlockDialog);
+if (document.getElementById('block-cancel')) document.getElementById('block-cancel').addEventListener('click', closeBlockModal);
+if (document.getElementById('block-modal-close')) document.getElementById('block-modal-close').addEventListener('click', closeBlockModal);
+if (blockModal) blockModal.addEventListener('click', (e) => { if (e.target === blockModal) closeBlockModal(); });
+if (blockNameInput) blockNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); applyBlockDialog(); }
+});
+
+/* --- Right-click context menu --- */
+
+const contextMenu = document.getElementById('context-menu');
+
+function hideContextMenu() {
+    if (contextMenu) contextMenu.classList.add('hidden');
+}
+
+/* Renders a menu from a list of { label, hint, action, disabled, danger } and
+   flips it back on screen if it would overflow the viewport. */
+function showContextMenu(clientX, clientY, items) {
+    if (!contextMenu || items.length === 0) return;
+
+    contextMenu.innerHTML = '';
+    items.forEach(item => {
+        if (item.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'context-separator';
+            contextMenu.appendChild(sep);
+            return;
+        }
+        const el = document.createElement('button');
+        el.className = 'context-item' + (item.danger ? ' danger' : '');
+        el.disabled = !!item.disabled;
+        el.innerHTML = `<span>${escapeHtml(item.label)}</span>`
+            + (item.hint ? `<kbd>${escapeHtml(item.hint)}</kbd>` : '');
+        el.addEventListener('click', () => {
+            hideContextMenu();
+            if (item.action) item.action();
+        });
+        contextMenu.appendChild(el);
+    });
+
+    contextMenu.classList.remove('hidden');
+    // Measure after it is visible, then keep it inside the viewport.
+    const rect = contextMenu.getBoundingClientRect();
+    const x = Math.min(clientX, window.innerWidth - rect.width - 8);
+    const y = Math.min(clientY, window.innerHeight - rect.height - 8);
+    contextMenu.style.left = `${Math.max(8, x)}px`;
+    contextMenu.style.top = `${Math.max(8, y)}px`;
+}
+
+function buildNodeMenu(nodeEl) {
+    const isBlock = isComposite(nodeEl.dataset.type);
+    const count = selectedNodes.length;
+    const items = [];
+
+    if (isBlock) {
+        items.push({ label: 'Block Details…', hint: '', action: () => openEditBlockDialog(nodeEl) });
+        items.push({ label: 'Ungroup Block', hint: 'Ctrl+Shift+G', action: () => {
+            const r = ungroupComposite(nodeEl);
+            if (!r.ok) showCompositeNotice(r.reason);
+        } });
+        items.push({ separator: true });
+    }
+
+    items.push({
+        label: count > 1 ? `Group ${count} into Block…` : 'Group into Block…',
+        hint: 'Ctrl+G',
+        disabled: count < 2,
+        action: openCreateBlockDialog
+    });
+    items.push({ separator: true });
+    items.push({ label: 'Copy', hint: 'Ctrl+C', action: () => copySelection() });
+    items.push({ label: 'Cut', hint: 'Ctrl+X', action: () => cutSelection() });
+    items.push({ label: 'Duplicate', hint: 'Ctrl+D', action: () => duplicateSelection() });
+    items.push({ separator: true });
+    items.push({ label: 'Delete', hint: 'Del', danger: true, action: () => deleteSelectedNode() });
+
+    return items;
+}
+
+function buildCanvasMenu(clientX, clientY) {
+    return [
+        {
+            label: 'Paste',
+            hint: 'Ctrl+V',
+            disabled: !clipboard,
+            action: () => {
+                const rect = workspace.getBoundingClientRect();
+                const world = toWorld(clientX - rect.left, clientY - rect.top);
+                pasteClipboard(world.x, world.y);
+            }
+        },
+        { separator: true },
+        {
+            label: 'Select All',
+            hint: '',
+            disabled: nodes.length === 0,
+            action: () => { clearSelection(); nodes.forEach(n => addToSelection(n.el)); }
+        }
+    ];
+}
+
+workspace.addEventListener('contextmenu', (e) => {
+    // Placement mode already uses right-click to cancel; leave that alone.
+    if (placingType) return;
+    if (isDeleteMode) return;
+
+    const nodeEl = e.target.closest('.node');
+    e.preventDefault();
+
+    if (nodeEl) {
+        // Right-clicking outside the current selection retargets it, matching
+        // how file managers and editors behave.
+        if (!selectedNodes.includes(nodeEl)) {
+            clearSelection();
+            addToSelection(nodeEl);
+        }
+        showContextMenu(e.clientX, e.clientY, buildNodeMenu(nodeEl));
+    } else {
+        showContextMenu(e.clientX, e.clientY, buildCanvasMenu(e.clientX, e.clientY));
+    }
+});
+
+document.addEventListener('mousedown', (e) => {
+    if (contextMenu && !contextMenu.classList.contains('hidden') && !contextMenu.contains(e.target)) {
+        hideContextMenu();
+    }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideContextMenu(); });
+window.addEventListener('blur', hideContextMenu);
 
 function openSidebar(nodeId) {
     closeSettings();
@@ -723,6 +1722,12 @@ function openSidebar(nodeId) {
         });
         createSidebarInput('Max Value', 'number', node.config.max || 1, (val) => {
             node.config.max = parseFloat(val); updateSimulation(nodes, connections); saveState();
+        });
+    } else if (node.type === 'Clock') {
+        createSidebarInput('Half-period (ticks)', 'number', node.config.period || 10, (val) => {
+            // One tick is 1/20s, so 10 ticks per half-period is a 1 Hz square wave.
+            node.config.period = Math.max(1, Math.round(parseFloat(val) || 1));
+            updateSimulation(nodes, connections); saveState();
         });
     } else if (node.type === 'Constant') {
         createSidebarInput('Value', 'number', node.config.value || 0, (val) => {
@@ -1027,7 +2032,7 @@ function createNode(type, x, y, isGhost = false, providedId = null) {
             });
         });
 
-        const nodeData = { id, type, el: nodeEl, memory: {}, config: {} };
+        const nodeData = { id, type, el: nodeEl, x, y, memory: {}, config: {} };
         if (type === 'Lever') nodeData.config.value = 0;
         if (type === 'Bar Graph') { nodeData.config.min = 0; nodeData.config.max = 100; }
         if (type === 'Threshold') { nodeData.config.min = 0; nodeData.config.max = 1; }
@@ -1065,23 +2070,24 @@ function createPin(type, nodeId, index, styleClass = 'bool', gateType = '') {
     pin.dataset.index = index;
     pin.dataset.gateType = gateType;
 
-    // Get pin description from pinDescriptions
-    const desc = pinDescriptions[gateType];
-    let pinLabel = `${type} ${index + 1}`;
-    if (desc) {
-        if (type === 'input' && desc.inputs && desc.inputs[index]) {
-            pinLabel = desc.inputs[index];
-        } else if (type === 'output' && desc.outputs && desc.outputs[index]) {
-            pinLabel = desc.outputs[index];
+    /* Resolved on hover rather than captured at creation. Composite pin names
+       can be edited after instances already exist, and a captured label would
+       leave those instances showing the old name forever. */
+    const resolvePinLabel = () => {
+        const desc = pinDescriptions[gateType];
+        if (desc) {
+            if (type === 'input' && desc.inputs && desc.inputs[index]) return desc.inputs[index];
+            if (type === 'output' && desc.outputs && desc.outputs[index]) return desc.outputs[index];
         }
-    }
+        return `${type} ${index + 1}`;
+    };
 
     // Pin tooltip events
     pin.addEventListener('mouseenter', (e) => {
         if (isDeleteMode) return;
         const pinType = type === 'input' ? 'INPUT' : 'OUTPUT';
         const color = type === 'input' ? '#e74c3c' : '#2ecc71';
-        tooltip.innerHTML = `<span style="color: ${color}; font-weight: bold;">[${pinType}]</span> ${pinLabel}`;
+        tooltip.innerHTML = `<span style="color: ${color}; font-weight: bold;">[${pinType}]</span> ${escapeHtml(resolvePinLabel())}`;
         tooltip.classList.remove('hidden');
     });
     pin.addEventListener('mouseleave', () => {
@@ -1231,6 +2237,11 @@ document.addEventListener('mousemove', (e) => {
     const rect = workspace.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+
+    // Remembered so Paste can drop the clipboard under the cursor.
+    lastPointerInWorkspace = (mouseX >= 0 && mouseY >= 0 && mouseX <= rect.width && mouseY <= rect.height)
+        ? { x: mouseX, y: mouseY }
+        : null;
 
     if (isPanning) {
         panX += e.clientX - panStartX; panY += e.clientY - panStartY;
@@ -1424,12 +2435,14 @@ if (newBtn) {
             closeSidebar();
             updateSimulation(nodes, connections);
             saveState();
+            hasUnsavedChanges = false; // Freshly cleared board has nothing to lose.
         }
     });
 }
 
 updateSimulation(nodes, connections);
 saveState();
+hasUnsavedChanges = false; // The initial empty board isn't unsaved work.
 
 const undoBtn = document.getElementById('undo-btn');
 const redoBtn = document.getElementById('redo-btn');
@@ -1445,27 +2458,60 @@ function saveState() {
         connections: connections.map(c => ({
             sourceNode: c.sourceNode, sourceIndex: c.sourceIndex,
             destNode: c.destNode, destIndex: c.destIndex
-        }))
+        })),
+        // Block definitions travel with the circuit, otherwise a saved board
+        // would load with instances whose definition no longer exists.
+        composites: serializeComposites()
     };
     if (historyStep < history.length - 1) history = history.slice(0, historyStep + 1);
     history.push(state);
     historyStep++;
     if (history.length > 50) { history.shift(); historyStep--; }
+    hasUnsavedChanges = true;
 }
 
+// Warn before losing work. Skipped on an empty board so the landing page and a
+// fresh session never prompt.
+window.addEventListener('beforeunload', (e) => {
+    if (!hasUnsavedChanges) return;
+    if (nodes.length === 0 && connections.length === 0) return;
+    e.preventDefault();
+    e.returnValue = '';
+});
+
 undoBtn.addEventListener('click', () => {
-    if (historyStep > 0) { historyStep--; isRestoring = true; loadCircuit(history[historyStep]); isRestoring = false; }
+    // isRestoring suppresses saveState(), so flag the change here instead.
+    if (historyStep > 0) { historyStep--; isRestoring = true; loadCircuit(history[historyStep]); isRestoring = false; hasUnsavedChanges = true; }
 });
 
 redoBtn.addEventListener('click', () => {
-    if (historyStep < history.length - 1) { historyStep++; isRestoring = true; loadCircuit(history[historyStep]); isRestoring = false; }
+    if (historyStep < history.length - 1) { historyStep++; isRestoring = true; loadCircuit(history[historyStep]); isRestoring = false; hasUnsavedChanges = true; }
 });
+
+function serializeComposites() {
+    return [...compositeDefinitions.values()].map(d => JSON.parse(JSON.stringify(d)));
+}
+
+/* Re-registers saved block definitions. Runs before nodes are created so that
+   componentDefinitions already knows the pin counts for any composite type the
+   circuit references. Circuits saved before blocks existed simply have no
+   `composites` key and load unchanged. */
+function restoreComposites(list) {
+    if (!Array.isArray(list)) return;
+    list.forEach(def => {
+        registerCompositeDefinition(def);
+        const num = parseInt(String(def.id).replace('comp-', ''), 10);
+        if (!isNaN(num) && num >= nextCompositeId) nextCompositeId = num + 1;
+    });
+}
 
 function loadCircuit(data) {
     nodes.forEach(n => n.el.remove());
     nodes = [];
     connections = [];
     while (svgLayer.firstChild) svgLayer.removeChild(svgLayer.firstChild);
+
+    restoreComposites(data.composites);
 
     let maxId = 0;
     data.nodes.forEach(nData => {
@@ -1528,6 +2574,43 @@ initWiring({
     updateHoverProbePosition: updateHoverProbePosition,
     setSidebarTitle: (title) => { sidebarTitle.innerText = title; }
 });
+
+/* --- AI Assistant ---
+   The agent gets the same entry points the UI uses, so anything it does is
+   indistinguishable from a user doing it — including undo. */
+
+function deleteNodeById(id) {
+    const node = nodes.find(n => n.id === id);
+    if (!node) return false;
+    connections.filter(c => c.sourceNode === id || c.destNode === id).forEach(c => c.pathEl.remove());
+    connections = connections.filter(c => c.sourceNode !== id && c.destNode !== id);
+    node.el.remove();
+    nodes = nodes.filter(n => n.id !== id);
+    if (activeConfigNodeId === id) closeSidebar();
+    return true;
+}
+
+const agentApi = {
+    getNodes: () => nodes,
+    getConnections: () => connections,
+    componentDefinitions,
+    createNode: (type, x, y) => createNode(type, x, y),
+    createConnection,
+    deleteNodeById,
+    updateSimulation: () => updateSimulation(nodes, connections),
+    updateConnections,
+    drawMinimap,
+    saveState,
+    // Lets a whole agent run collapse into a single undo step.
+    setSuppressHistory: (on) => { isRestoring = on; },
+    getAccessToken: async () => {
+        const { data } = await supabase.auth.getSession();
+        return data?.session?.access_token || null;
+    }
+};
+
+initAgentTools(agentApi);
+initAgent(agentApi);
 
 /* --- Minimap Logic --- */
 initMinimap({
@@ -1915,6 +2998,7 @@ if (microLoadBtn) {
         if (selectedCircuit) {
             if (confirm(`Load "${selectedCircuit.name}"? Current progress will be lost.`)) {
                 loadCircuit(selectedCircuit.data);
+                hasUnsavedChanges = false; // Just-loaded circuit matches the cloud copy.
                 microMenuModal.classList.add('hidden');
                 if (microDetailsPanel) microDetailsPanel.classList.add('hidden');
                 selectedCircuit = null;
@@ -2028,6 +3112,8 @@ if (saveCircuitSubmit) {
             connections: connections.map(c => ({
                 sourceNode: c.sourceNode, sourceIndex: c.sourceIndex, destNode: c.destNode, destIndex: c.destIndex
             })),
+            // Block definitions must travel with the circuit to the cloud too.
+            composites: serializeComposites(),
             description: description,
             thumbnail: thumbnail
         };
@@ -2042,6 +3128,7 @@ if (saveCircuitSubmit) {
         saveCircuitSubmit.disabled = false;
 
         if (result) {
+            hasUnsavedChanges = false; // Work is now persisted to the cloud.
             closeSaveModal();
             // Automatically switch back to the grid and refresh
             microMenuModal.classList.remove('hidden');

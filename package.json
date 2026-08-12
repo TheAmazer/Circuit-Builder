@@ -1,5 +1,6 @@
 {
   "devDependencies": {
     "supabase": "^2.76.15"
-  }
+  },
+  "type": "module"
 }

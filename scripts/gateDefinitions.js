@@ -1,6 +1,6 @@
 // gateDefinitions.js
 
-export const configurableTypes = ['Switch', 'Lever', 'Light', 'Dial', 'Bar Graph', 'Threshold', 'Function', 'Memory Register', 'Delay', 'Debounce', 'Random', 'Constant'];
+export const configurableTypes = ['Clock', 'Switch', 'Lever', 'Light', 'Dial', 'Bar Graph', 'Threshold', 'Function', 'Memory Register', 'Delay', 'Debounce', 'Random', 'Constant'];
 
 export const componentDefinitions = {
     'AND': { inputs: 2, outputs: 1, label: 'AND', desc: "Outputs ON only if <b>both</b> inputs are ON.<br><br><table class='truth-table'><tr><th>A</th><th>B</th><th>Out</th></tr><tr><td>0</td><td>0</td><td>0</td></tr><tr><td>0</td><td>1</td><td>0</td></tr><tr><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>1</td><td>1</td></tr></table>" },
@@ -47,6 +47,7 @@ export const componentDefinitions = {
     'CEIL': { inputs: 1, outputs: 1, label: 'CEIL', desc: "Rounds input up to the nearest integer.<br><br><b>Formula:</b> <code>ceil(X)</code><br><br><b>Example:</b> ceil(3.1) = 4" },
     // Signal/Utility Gates
     'Delay': { inputs: 1, outputs: 1, label: 'Delay', desc: "Outputs the input value after a delay. Click config icon to set delay ticks.<br><br><b>Default:</b> 1 tick delay" },
+    'Clock': { inputs: 0, outputs: 1, label: 'Clock', desc: "A free-running oscillator. Flips between OFF and ON every few ticks, with no input needed.<br><br>Use it to drive counters, flip-flops and anything that needs a heartbeat. Set the half-period in ticks from the gear icon." },
     'Pulse': { inputs: 1, outputs: 1, label: 'Pulse', desc: "Outputs a single ON pulse on rising edge of input, then returns to OFF.<br><br><table class='truth-table'><tr><th>Input</th><th>Out</th></tr><tr><td>0→1</td><td>1</td></tr><tr><td>1→1</td><td>0</td></tr><tr><td>1→0</td><td>0</td></tr></table>" },
     'Debounce': { inputs: 1, outputs: 1, label: 'Debounce', desc: "Filters rapid signal changes. Only updates output after input is stable. Click config icon to set delay ticks." },
     'Counter': { inputs: 2, outputs: 1, label: 'Counter', desc: "Counts rising edges on Clock input. Reset input clears count to 0.<br>Top: Clock, Bottom: Reset.<br><br>Outputs the current count value." },
@@ -133,6 +134,7 @@ export const pinDescriptions = {
     'Memory Register': { inputs: ['Value In', 'Set (Rising Edge)', 'Reset (Hold)'], outputs: ['Stored Value'] },
     // Signal Gates
     'Delay': { inputs: ['Input'], outputs: ['Delayed Output'] },
+    'Clock': { inputs: [], outputs: ['Clock Signal'] },
     'Pulse': { inputs: ['Input'], outputs: ['Pulse Output'] },
     'Debounce': { inputs: ['Input'], outputs: ['Debounced Output'] },
     'Counter': { inputs: ['Clock', 'Reset'], outputs: ['Count Value'] },
