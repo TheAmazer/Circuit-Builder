@@ -1,5 +1,6 @@
 Screenshot *.png
 *.mp4
+!docs/media/nodecraft-demo.mp4
 *.jxr
 .DS_Store
 Thumbs.db
